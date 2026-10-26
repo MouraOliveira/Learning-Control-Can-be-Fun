@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PID Control Lab</title>
+<style>
+:root{--bg:#eef2f5;--panel:#fff;--ink:#14212b;--mute:#5b6b78;--line:#d3dce3;--grid:#e3e9ee;--p:#1f6feb;--i:#0e9f6e;--d:#e07a10;--y:#14212b;--sp:#c2410c;--bad:#c0262d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161c;--panel:#17212a;--ink:#e6edf2;--mute:#93a4b1;--line:#2b3a46;--grid:#212e38;--p:#5b9bff;--i:#3ddc97;--d:#ffa24a;--y:#e6edf2;--sp:#ff8a5c;--bad:#ff6b72}}
+:root[data-theme="dark"]{--bg:#0f161c;--panel:#17212a;--ink:#e6edf2;--mute:#93a4b1;--line:#2b3a46;--grid:#212e38;--p:#5b9bff;--i:#3ddc97;--d:#ffa24a;--y:#e6edf2;--sp:#ff8a5c;--bad:#ff6b72}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 18px;max-width:70ch}
+.grid{display:grid;grid-template-columns:330px 1fr;gap:16px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.panel h2{font-size:15px;margin:0 0 10px}
+.ctl{margin-bottom:12px}
+.ctl .row{display:flex;justify-content:space-between;align-items:baseline;font-size:14px}
+.ctl b{font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,Consolas,monospace}
+input[type=range]{width:100%;margin:2px 0}
+#kp{accent-color:var(--p)}#ki{accent-color:var(--i)}#kd{accent-color:var(--d)}
+.k-p{color:var(--p)}.k-i{color:var(--i)}.k-d{color:var(--d)}
+select,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 9px;cursor:pointer}
+select{width:100%}
+button:hover{border-color:var(--mute)}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;margin:6px 0}
+.sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.lbl{font-size:13px;color:var(--mute);margin-bottom:4px}
+canvas{width:100%;display:block;border-radius:6px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--mute);margin:2px 0 8px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px}
+.m{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.m span{display:block;font-size:12px;color:var(--mute)}
+.m b{font-size:19px;font-variant-numeric:tabular-nums}
+.read{margin-top:12px;padding:10px 12px;border-left:4px solid var(--p);background:var(--bg);border-radius:0 8px 8px 0;font-size:14px}
+.terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+.term{background:var(--panel);border:1px solid var(--line);border-top-width:4px;border-radius:10px;padding:12px 14px;opacity:.55;transition:opacity .2s}
+.term.on{opacity:1}
+.term h3{margin:0 0 6px;font-size:16px}
+.term p{margin:4px 0;font-size:14px}
+.term .eq{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;color:var(--mute)}
+.pro::before{content:"Strength: ";font-weight:600}.con::before{content:"Limit: ";font-weight:600;color:var(--bad)}
+</style></head><body><div class="wrap">
+<h1>PID control lab</h1>
+<p class="sub">Tune a controller on a simulated process. At t = 1 s the setpoint steps from 0 to 1; at t = 12 s an unexpected load pushes on the process. Change any slider and the whole run is recomputed.</p>
+<div class="grid">
+<div class="panel">
+ <h2>Controller</h2>
+ <div class="presets" id="presets"></div>
+ <div class="ctl"><div class="row"><span class="k-p">Proportional gain Kp</span><b id="vkp"></b></div><input id="kp" type="range" min="0" max="12" step="0.1" value="2"></div>
+ <div class="ctl"><div class="row"><span class="k-i">Integral gain Ki</span><b id="vki"></b></div><input id="ki" type="range" min="0" max="10" step="0.1" value="0"></div>
+ <div class="ctl"><div class="row"><span class="k-d">Derivative gain Kd</span><b id="vkd"></b></div><input id="kd" type="range" min="0" max="5" step="0.05" value="0"></div>
+ <div class="sec">
+  <div class="lbl">Process</div>
+  <select id="plant">
+   <option value="lag">Simple lag (first order, tank or heater)</option>
+   <option value="osc">Oscillatory (second order, spring-like)</option>
+   <option value="dead">Lag with 0.5 s dead time (slow sensor)</option>
+  </select>
+  <div class="chk"><input type="checkbox" id="noise"><label for="noise">Sensor noise</label></div>
+  <div class="chk"><input type="checkbox" id="sat"><label for="sat">Actuator limit (±3)</label></div>
+  <div class="chk"><input type="checkbox" id="aw" checked><label for="aw">Anti-windup (when limited)</label></div>
+  <div class="ctl" style="margin-top:8px"><div class="row"><span>Load disturbance at 12 s</span><b id="vdist"></b></div><input id="dist" type="range" min="-1" max="1" step="0.1" value="-0.5"></div>
+ </div>
+</div>
+<div>
+ <div class="panel">
+  <div class="legend"><span><i style="background:var(--sp)"></i>Setpoint</span><span><i style="background:var(--y)"></i>Process output</span></div>
+  <canvas id="c1" height="270" role="img" aria-label="Setpoint and process output over time"></canvas>
+  <div class="legend" style="margin-top:12px"><span><i style="background:var(--p)"></i>P term</span><span><i style="background:var(--i)"></i>I term</span><span><i style="background:var(--d)"></i>D term</span><span><i style="background:var(--y)"></i>Total control effort</span></div>
+  <canvas id="c2" height="200" role="img" aria-label="Controller term contributions over time"></canvas>
+  <div class="metrics" id="metrics"></div>
+  <div class="read" id="read"></div>
+ </div>
+</div></div>
+<div class="terms" id="terms"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const T=20,DT=0.005,N=T/DT,T_SP=1,T_D=12;
+const PRE={"P only":[3,0,0],"P too high":[10,0,0],"PI":[2,1.5,0],"PD":[3,0,1],"PID":[3,1.5,0.8],"Windup demo":[3,4,0]};
+const TERMS=[
+{k:'p',t:'Proportional',eq:'u = Kp · error',pro:'Fast, simple response that scales with how far off you are. Raising Kp speeds up the rise.',con:'Leaves a steady-state offset on most processes. High Kp causes overshoot, ringing and eventually instability, and amplifies noise.'},
+{k:'i',t:'Integral',eq:'u = Ki · ∫ error dt',pro:'Removes steady-state error and rejects constant disturbances, because it keeps pushing until the error is exactly zero.',con:'Adds lag and overshoot, can oscillate, and “winds up” when the actuator saturates, causing a long recovery.'},
+{k:'d',t:'Derivative',eq:'u = Kd · d(error)/dt',pro:'Reacts to the trend of the error, adding damping that cuts overshoot and ringing and lets you use a higher Kp.',con:'Amplifies sensor noise, does nothing for a constant error, and helps little when there is dead time.'}];
+let seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647-.5}
+function sim(){
+ const kp=+$('kp').value,ki=+$('ki').value,kd=+$('kd').value,pl=$('plant').value,noisy=$('noise').checked,sat=$('sat').checked,aw=$('aw').checked,dist=+$('dist').value;
+ seed=7;
+ const r={t:[],sp:[],y:[],P:[],I:[],D:[],u:[]};
+ let y=0,v=0,integ=0,ym=0,dflt=0,prev=0,ud=[],delay=Math.round(.5/DT);
+ for(let k=0;k<=N;k++){
+  const t=k*DT,sp=t>=T_SP?1:0,d=t>=T_D?dist:0;
+  const meas=y+(noisy?rnd()*.06:0);
+  const e=sp-meas;
+  const raw=(k===0?0:(meas-prev)/DT);prev=meas;
+  dflt+=(raw-dflt)*DT/(0.03+DT);            // filtered derivative of the measurement
+  const Pt=kp*e,Dt=-kd*dflt;
+  let un=Pt+integ+Dt,u=sat?Math.max(-3,Math.min(3,un)):un;
+  const saturated=sat&&un!==u;
+  if(!(aw&&saturated&&Math.sign(e)===Math.sign(un))) integ+=ki*e*DT;
+  ud.push(u);
+  const uf=pl==='dead'?(ud[k-delay]??0):u;
+  if(pl==='lag')y+=((uf+d-y)/1)*DT;
+  else if(pl==='osc'){v+=(4*(uf+d-y)-1.6*v)*DT;y+=v*DT}
+  else y+=((uf+d-y)/1)*DT;
+  y=Math.max(-1e3,Math.min(1e3,y));
+  if(k%10===0){r.t.push(t);r.sp.push(sp);r.y.push(y);r.P.push(Pt);r.I.push(integ);r.D.push(Dt);r.u.push(u)}
+ }
+ return r}
+function metrics(r){
+ const L_=0,s=Math.round(T_SP/(DT*10)),e=Math.round(T_D/(DT*10)),n=r.t.length;
+ let t10=null,t90=null,peak=0;
+ for(let k=s;k<e;k++){if(t10===null&&r.y[k]>=.1)t10=r.t[k];if(t90===null&&r.y[k]>=.9)t90=r.t[k];peak=Math.max(peak,r.y[k])}
+ const ov=Math.max(0,(peak-1)*100);
+ let ts=null;for(let k=e-1;k>=s;k--){if(Math.abs(r.y[k]-1)>.02){ts=r.t[Math.min(k+1,e-1)]-T_SP;break}}
+ if(ts===null)ts=0;
+ const settled=Math.abs(r.y[e-1]-1)<=.02;
+ const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+ const ss=1-avg(r.y.slice(e-20,e));
+ let dmax=0;for(let k=e;k<n;k++)dmax=Math.max(dmax,Math.abs(r.y[k]-r.y[e-1]));
+ const ssd=1-avg(r.y.slice(n-20));
+ const diverge=r.y.some(x=>Math.abs(x)>8);
+ return{rise:t90!==null&&t10!==null?t90-t10:null,ov,ts:settled?ts:null,ss,dmax,ssd,diverge,rough:r.D.reduce((a,x,k)=>k?a+Math.abs(x-r.D[k-1]):0,0)}}
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function plot(cv,series,ymin,ymax,opts={}){
+ const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=+(cv.dataset.h||(cv.dataset.h=cv.getAttribute('height')));cv.style.height=h+'px';
+ cv.width=w*dpr;cv.height=h*dpr;const g=cv.getContext('2d');g.scale(dpr,dpr);
+ const L=40,R=8,Tp=8,B=22,pw=w-L-R,ph=h-Tp-B;
+ const X=t=>L+t/T*pw,Y=v=>Tp+ph-(Math.max(ymin,Math.min(ymax,v))-ymin)/(ymax-ymin)*ph;
+ g.font='11px system-ui';g.fillStyle=css('--mute');g.strokeStyle=css('--grid');g.lineWidth=1;
+ const step=opts.step||.5;let dec=0;while(step*10**dec%1>1e-9&&dec<3)dec++;
+ for(let v=Math.ceil(ymin/step)*step;v<=ymax+1e-9;v+=step){g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.textAlign='right';g.fillText(v.toFixed(dec),L-5,Y(v)+4)}
+ for(let t=0;t<=T;t+=2){g.textAlign='center';g.fillText(t+'s',X(t),h-6)}
+ [T_SP,T_D].forEach((t,i)=>{g.save();g.setLineDash([3,4]);g.strokeStyle=css('--mute');g.beginPath();g.moveTo(X(t),Tp);g.lineTo(X(t),Tp+ph);g.stroke();g.restore();g.textAlign='left';g.fillText(i?'load':'step',X(t)+3,Tp+10)});
+ const rr=window._r;
+ series.forEach(([key,col,lw])=>{g.strokeStyle=css(col);g.lineWidth=lw||2;g.beginPath();rr[key].forEach((v,k)=>{k?g.lineTo(X(rr.t[k]),Y(v)):g.moveTo(X(rr.t[k]),Y(v))});g.stroke()});
+ if(opts.band){g.save();g.fillStyle=css('--sp');g.globalAlpha=.1;g.fillRect(L,Y(1.02),pw,Y(.98)-Y(1.02));g.restore()}
+}
+function auto(keys,lo,hi,cap){keys.forEach(k=>window._r[k].forEach(v=>{if(v<lo)lo=v;if(v>hi)hi=v}));lo=Math.max(lo,-cap);hi=Math.min(hi,cap);const raw=(hi-lo)/6,mag=10**Math.floor(Math.log10(raw));const step=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw);return[Math.floor(lo/step-1e-9)*step,Math.ceil(hi/step-1e-9)*step,step]}
+function fmt(x,u=''){return x===null?'—':x.toFixed(2)+u}
+function update(){
+ const kp=+$('kp').value,ki=+$('ki').value,kd=+$('kd').value;
+ $('vkp').textContent=kp.toFixed(1);$('vki').textContent=ki.toFixed(1);$('vkd').textContent=kd.toFixed(2);$('vdist').textContent=(+$('dist').value).toFixed(1);
+ const r=sim();window._r=r;const m=metrics(r);
+ const a1=auto(['sp','y'],0,1.2,15),a2=auto(['P','I','D','u'],-1,1,20);
+ plot($('c1'),[['sp','--sp',2],['y','--y',2.4]],a1[0],a1[1],{band:true,step:a1[2]});
+ plot($('c2'),[['P','--p',1.6],['I','--i',1.6],['D','--d',1.6],['u','--y',2.2]],a2[0],a2[1],{step:a2[2]});
+ const cells=[['Rise time (10–90%)',fmt(m.rise,' s')],['Overshoot',m.diverge?'diverges':m.ov.toFixed(0)+' %'],['Settling (±2%)',m.diverge?'—':m.ts===null?'never':fmt(m.ts,' s')],['Offset before load',m.diverge?'—':(m.ss*100).toFixed(1)+' %'],['Worst load deviation',m.diverge?'—':(m.dmax*100).toFixed(0)+' %'],['Offset after load',m.diverge?'—':(m.ssd*100).toFixed(1)+' %']];
+ $('metrics').innerHTML=cells.map(c=>`<div class="m"><span>${c[0]}</span><b>${c[1]}</b></div>`).join('');
+ // live commentary
+ const msgs=[];
+ if(m.diverge)msgs.push('The loop is unstable: the output grows without bound. Lower Kp or Ki, or add some derivative action to restore damping.');
+ else{
+  if(ki===0&&Math.abs(m.ss)>.02)msgs.push(`With no integral action the output settles ${(m.ss*100).toFixed(0)}% short of the setpoint, and the load leaves a ${(m.ssd*100).toFixed(0)}% offset. Add Ki to remove both.`);
+  if(ki>0&&Math.abs(m.ssd)<.02&&Math.abs(m.ss)<.02)msgs.push('Integral action drives the error to zero, even after the load disturbance.');
+  if(m.ov>25)msgs.push(`Overshoot is ${m.ov.toFixed(0)}%. ${kd===0?'Derivative action adds damping and would trim this.':'Try reducing Kp or Ki a little.'}`);
+  if(kd>0&&$('noise').checked)msgs.push('Look at the D term (orange): sensor noise is amplified into a jittery control signal. This is the price of derivative action.');
+  if(kd>0&&$('plant').value==='dead')msgs.push('With dead time the derivative term sees the change too late, so its damping benefit is limited here.');
+  if($('sat').checked&&ki>0&&!$('aw').checked&&m.ov>10)msgs.push('Integral windup: the integrator kept accumulating while the actuator was stuck at its limit. Turn on anti-windup to compare.');
+  if(!msgs.length)msgs.push('A well-behaved response. Try switching the process, adding noise or an actuator limit to see where each term breaks down.');
+ }
+ $('read').textContent=msgs.join(' ');
+ [...$('terms').children].forEach((el,i)=>el.classList.toggle('on',[kp,ki,kd][i]>0));
+}
+$('presets').innerHTML=Object.keys(PRE).map(n=>`<button data-n="${n}">${n}</button>`).join('');
+$('presets').onclick=e=>{const n=e.target.dataset.n;if(!n)return;const[p,i,d]=PRE[n];$('kp').value=p;$('ki').value=i;$('kd').value=d;
+ if(n==='Windup demo'){$('sat').checked=true;$('aw').checked=false}else if(n==='P too high'){$('plant').value='dead'}update()};
+$('terms').innerHTML=TERMS.map(t=>`<div class="term" style="border-top-color:var(--${t.k})"><h3 class="k-${t.k}">${t.t}</h3><div class="eq">${t.eq}</div><p class="pro">${t.pro}</p><p class="con">${t.con}</p></div>`).join('');
+['kp','ki','kd','plant','noise','sat','aw','dist'].forEach(id=>$(id).addEventListener('input',update));
+addEventListener('resize',update);
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',update);
+update();
+</script><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body></html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Antenna side view: step, then ramp, then parabola</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--ink:#1c2430;--mut:#5d6877;--line:#d9dee6;--r:#2a5bd7;--y:#e07a00;--e:#c2293d;--hi:#fff3cf;--ok:#e8f3ea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b212a;--ink:#e7ebf0;--mut:#9aa5b4;--line:#323b47;--r:#6f97ff;--y:#ffa02e;--e:#ff6b7f;--hi:#4a3d12;--ok:#1d2b22}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b212a;--ink:#e7ebf0;--mut:#9aa5b4;--line:#323b47;--r:#6f97ff;--y:#ffa02e;--e:#ff6b7f;--hi:#4a3d12;--ok:#1d2b22}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:0 0 4px}h2{font-size:1.1rem;margin:0 0 8px}p{margin:0 0 10px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:14px}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ctl label{display:block;font-weight:600;margin-bottom:4px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+button{padding:8px 10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;font:inherit;cursor:pointer}
+.seg button{flex:1;min-width:70px}button.on{background:var(--r);color:#fff;border-color:var(--r)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+input[type=range]{width:100%}
+.tl{display:grid;grid-template-columns:8fr 10fr 10fr;gap:4px;margin-bottom:8px}
+.tl div{position:relative;height:26px;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--bg);font-size:.82rem;line-height:24px;text-align:center}
+.tl div i{position:absolute;left:0;top:0;bottom:0;background:var(--r);opacity:.25}
+.tl div span{position:relative}
+.tl div.cur{border-color:var(--r);font-weight:700}
+.banner{font-size:1.15rem;font-weight:700;margin-bottom:6px}
+.stage{display:grid;grid-template-columns:minmax(300px,1.15fr) 1fr;gap:14px;align-items:start}
+@media(max-width:720px){.stage{grid-template-columns:1fr}}
+canvas{width:100%;height:auto;display:block}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:.9rem;color:var(--mut);margin:6px 0}
+.lg i{display:inline-block;width:22px;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.cap{margin-top:8px;font-weight:600;min-height:3em}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:420px;text-align:center}
+th,td{border:1px solid var(--line);padding:6px 8px}td.hl{background:var(--hi);font-weight:700}
+</style></head><body><main>
+<h1>One antenna, three targets</h1>
+<p>Side view of the motor-driven dish tilting in elevation toward a target in the sky. The same antenna and controller face a step, then a ramp, then a parabola. Each run starts from rest. Pick the antenna and the gains, then press Restart.</p>
+
+<div class="card"><div class="ctl">
+<div><label id="ls">Antenna</label><div class="seg" id="ss" role="group" aria-labelledby="ls">
+<button data-v="1">Spring-return</button><button data-v="0" class="on">Free servo</button></div></div>
+<div><label for="kp">Gain K<sub>p</sub>: <span id="kpv"></span></label><input id="kp" type="range" min="1" max="20" step="0.5" value="4">
+<label for="ki" style="margin-top:8px">Integral gain K<sub>i</sub>: <span id="kiv"></span></label><input id="ki" type="range" min="0" max="20" step="0.5" value="0"></div>
+<div><label id="lsp">Speed</label><div class="seg" id="sp" role="group" aria-labelledby="lsp"><button data-v="1" class="on">1×</button><button data-v="2">2×</button><button data-v="4">4×</button></div>
+<div class="seg" style="margin-top:8px"><button id="rs">Restart</button><button id="pp">Pause</button></div></div>
+</div></div>
+
+<div class="card">
+<div class="tl" id="tl"><div><i></i><span>1 · Step</span></div><div><i></i><span>2 · Ramp</span></div><div><i></i><span>3 · Parabola</span></div></div>
+<div class="banner" id="banner"></div>
+<div class="stage">
+<div><canvas id="dial" width="720" height="420" role="img" aria-label="Side view of the dish antenna, motor and target"></canvas>
+<div class="lg"><span><i style="color:var(--r)"></i>target elevation r</span><span><i style="color:var(--y)"></i>antenna elevation y</span><span><i style="color:var(--e)"></i>error arc</span></div></div>
+<div><canvas id="c1" width="720" height="250" role="img" aria-label="Target and antenna angle versus time"></canvas>
+<canvas id="c2" width="720" height="200" role="img" aria-label="Error versus time" style="margin-top:6px"></canvas></div>
+</div>
+<div class="cap" id="cap" aria-live="polite"></div>
+</div>
+
+<div class="card"><h2>Scoreboard (degrees)</h2>
+<p id="tn"></p>
+<div class="wrap"><table id="tb"></table></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const A=45,V=8,Q=1.5,DT=0.01,CL=720,GAP=1.5;
+const PH=[{m:0,T:8,n:'Step',d:'The target jumps to 45° at once.'},{m:1,T:10,n:'Ramp',d:'The target sweeps at a constant 8°/s.'},{m:2,T:10,n:'Parabola',d:'The target keeps speeding up (1.5°/s²).'}];
+let k=0,Kp=4,Ki=0,speed=1,P=[],starts=[],vt=0,last=0,paused=false,raf=0;
+const rf=(t,m)=>m==0?A:m==1?V*t:Q*t*t/2;
+const clip=v=>Math.max(-CL,Math.min(CL,isFinite(v)?v:CL));
+function sim(m,Tm){
+  const S=[0,0,0],ts=[],R=[],Y=[],E=[];
+  const f=(s,r)=>{const e=r-s[0];return[s[1],Kp*e+Ki*s[2]-k*s[0]-2*s[1],e]};
+  const ad=(s,d,h)=>s.map((v,i)=>v+h*d[i]);const h=0.002,n=Math.round(Tm/h);
+  for(let i=0;i<=n;i++){const t=i*h;
+    if(i%5==0){ts.push(t);R.push(rf(t,m));Y.push(clip(S[0]));E.push(clip(rf(t,m)-S[0]))}
+    const r1=rf(t,m),r2=rf(t+h/2,m),r3=rf(t+h,m);
+    const k1=f(S,r1),k2=f(ad(S,k1,h/2),r2),k3=f(ad(S,k2,h/2),r2),k4=f(ad(S,k3,h),r3);
+    for(let j=0;j<3;j++)S[j]+=h/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]);}
+  return{ts,R,Y,E,T:Tm};
+}
+const hasI=()=>Ki>0;
+const stable=()=>hasI()?Ki<2*(k+Kp):(k+Kp)>0;
+const typeN=()=>k==1?(hasI()?1:0):(hasI()?2:1);
+function theory(){
+  if(!stable())return null;
+  if(k==1)return hasI()?[0,V/Ki,Infinity]:[A/(1+Kp),Infinity,Infinity];
+  return hasI()?[0,0,Q/(Ki/2)]:[0,V/(Kp/2),Infinity];}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function plot(cv,p,series,opt,idx){
+  const c=cv.getContext('2d'),W=cv.width,H=cv.height,L=50,Rm=12,Tm=10,Bm=26,T=p.T;c.clearRect(0,0,W,H);
+  let lo=0,hi=-1e9;series.forEach(s=>s.d.forEach(v=>{lo=Math.min(lo,v);hi=Math.max(hi,v)}));
+  (opt.dash||[]).forEach(v=>{hi=Math.max(hi,v)});if(hi-lo<1)hi=lo+1;hi+=(hi-lo)*.06;
+  const X=t=>L+t/T*(W-L-Rm),Yp=v=>H-Bm-(v-lo)/(hi-lo)*(H-Bm-Tm);
+  c.font='13px "Source Sans 3",system-ui,sans-serif';c.fillStyle=css('--mut');c.strokeStyle=css('--line');c.lineWidth=1;
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Yp(v);c.beginPath();c.moveTo(L,y);c.lineTo(W-Rm,y);c.stroke();c.textAlign='right';c.fillText(v.toFixed(0)+'°',L-5,y+4)}
+  for(let t=0;t<=T;t+=2){c.textAlign='center';c.fillText(t+' s',X(t),H-7)}
+  (opt.dash||[]).forEach(v=>{c.setLineDash([7,5]);c.strokeStyle=css('--e');c.lineWidth=2;c.beginPath();c.moveTo(L,Yp(v));c.lineTo(W-Rm,Yp(v));c.stroke();c.setLineDash([])});
+  series.forEach(s=>{c.strokeStyle=css(s.c);c.lineWidth=2.5;c.beginPath();for(let i=0;i<=idx;i++){const px=X(p.ts[i]),py=Yp(s.d[i]);i?c.lineTo(px,py):c.moveTo(px,py)}c.stroke()});
+  c.fillStyle=css('--mut');c.textAlign='left';c.fillText(opt.title,L+6,Tm+12);
+}
+function dial(r,y,e){
+  const c=$('dial').getContext('2d'),W=720,H=420,px=250,py=320,rad=a=>a*Math.PI/180,TEAL='#1d9e8a';
+  c.clearRect(0,0,W,H);c.lineCap='round';c.lineJoin='round';
+  const box=(x,yy,w,h,f,s)=>{c.fillStyle=f;c.strokeStyle=s;c.lineWidth=1.5;c.beginPath();(c.roundRect||c.rect).call(c,x,yy,w,h,6);c.fill();c.stroke()};
+  c.font='13px "Source Sans 3",system-ui,sans-serif';
+  c.fillStyle=css('--line');c.fillRect(100,400,420,10);
+  box(px-12,py+16,24,64,css('--line'),css('--mut'));
+  box(px+12,py+36,30,22,css('--line'),css('--mut'));
+  c.fillStyle=css('--mut');c.textAlign='left';c.fillText('Angle sensor',px+48,py+52);
+  c.strokeStyle=css('--mut');c.lineWidth=6;c.beginPath();c.moveTo(px-45,py);c.lineTo(px,py);c.stroke();
+  box(px-115,py-24,70,48,css('--ok'),TEAL);
+  c.fillStyle=css('--mut');c.textAlign='center';c.fillText('Motor + gearbox',px-80,py-33);
+  if(k){c.strokeStyle=TEAL;c.lineWidth=2.5;c.beginPath();
+    for(let a=0;a<=Math.PI*6;a+=.15){const rr=19+a/(Math.PI*6)*16;a?c.lineTo(px+rr*Math.cos(a),py+rr*Math.sin(a)):c.moveTo(px+rr,py)}c.stroke();
+    c.fillStyle=TEAL;c.textAlign='left';c.fillText('Return spring (k = 1)',px-115,py+52)}
+  c.strokeStyle=css('--line');c.lineWidth=1.5;c.setLineDash([3,5]);c.beginPath();c.moveTo(px,py);c.lineTo(px+330,py);c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--mut');c.textAlign='left';c.fillText('0°',px+336,py+4);
+  const tx=px+280*Math.cos(rad(r)),ty=py-280*Math.sin(rad(r));
+  c.strokeStyle=css('--r');c.lineWidth=2;c.setLineDash([6,6]);c.beginPath();c.moveTo(px,py);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);
+  c.fillStyle=css('--r');c.fillRect(tx-28,ty-4,16,8);c.fillRect(tx+12,ty-4,16,8);c.beginPath();c.arc(tx,ty,10,0,7);c.fill();
+  c.textAlign='center';c.fillText('Target',tx,ty-18);
+  const sw=Math.min(Math.abs(e),359)*(e>=0?1:-1);
+  c.strokeStyle=css('--e');c.lineWidth=7;c.globalAlpha=.85;c.beginPath();c.arc(px,py,110,-rad(y),-rad(y+sw),e>=0);c.stroke();c.globalAlpha=1;
+  c.save();c.translate(px,py);c.rotate(-rad(y));
+  c.strokeStyle=css('--y');c.fillStyle=css('--y');
+  c.globalAlpha=.35;c.lineWidth=2;c.setLineDash([6,8]);c.beginPath();c.moveTo(160,0);c.lineTo(400,0);c.stroke();c.setLineDash([]);c.globalAlpha=1;
+  c.lineWidth=5;c.beginPath();c.moveTo(0,0);c.lineTo(66,0);c.stroke();
+  c.lineWidth=9;c.beginPath();c.moveTo(92,-72);c.quadraticCurveTo(40,0,92,72);c.stroke();
+  c.lineWidth=1.5;c.globalAlpha=.6;c.beginPath();c.moveTo(92,-72);c.lineTo(148,-4);c.moveTo(92,72);c.lineTo(148,4);c.stroke();c.globalAlpha=1;
+  c.lineWidth=3;c.beginPath();c.moveTo(66,0);c.lineTo(148,0);c.stroke();
+  c.beginPath();c.arc(153,0,7,0,7);c.fill();
+  c.restore();
+  c.fillStyle=css('--card');c.strokeStyle=css('--y');c.lineWidth=4;c.beginPath();c.arc(px,py,15,0,7);c.fill();c.stroke();
+  c.fillStyle=css('--y');c.beginPath();c.arc(px,py,4,0,7);c.fill();
+}
+function caption(i,th,end){
+  const d=PH[i].d;
+  if(!th)return d+' The loop is unstable (K_i must stay below '+(2*(k+Kp)).toFixed(1)+').';
+  const v=th[i];
+  if(!end)return d;
+  if(v==0)return d+' Result: the error returns to zero. This type of system can follow this motion.';
+  if(isFinite(v))return d+' Result: a constant error of '+v.toFixed(2)+'° remains.';
+  return d+' Result: the error keeps growing. The system has too few integrators for this motion.';
+}
+function frame(now){
+  vt+=(now-last)/1000*speed;last=now;
+  let i=2;for(let j=0;j<3;j++){if(vt<starts[j]+PH[j].T+(j<2?GAP:1e9)){i=j;break}}
+  const p=P[i],local=vt-starts[i],inGap=local>PH[i].T,done=i==2&&local>=PH[2].T;
+  const idx=Math.min(Math.floor(Math.min(local,PH[i].T)/DT),p.ts.length-1);
+  const th=theory(),ended=local>=PH[i].T-0.01;
+  dial(p.R[idx],p.Y[idx],p.E[idx]);
+  plot($('c1'),p,[{d:p.R,c:'--r'},{d:p.Y,c:'--y'}],{title:'target r(t) and antenna y(t)'},idx);
+  plot($('c2'),p,[{d:p.E,c:'--e'}],{title:'error e(t) = r − y',dash:th&&isFinite(th[i])?[th[i]]:[]},idx);
+  $('banner').textContent=done?'Finished. Press Restart to run again.':`Phase ${i+1} of 3 · ${PH[i].n} input`+(inGap?`  →  next: ${PH[i+1].n}`:'');
+  $('cap').textContent=caption(i,th,ended);
+  [...$('tl').children].forEach((el,j)=>{el.classList.toggle('cur',j==i&&!done);el.firstChild.style.width=(j<i?100:j>i?0:Math.min(local/PH[j].T,1)*100)+'%'});
+  table(i,idx,vt>starts[1]-GAP+0.01?1:0,done);
+  if(!paused&&!done)raf=requestAnimationFrame(frame);
+}
+function table(cur,idx,_,done){
+  const th=theory(),f=v=>v==null?'—':isFinite(v)?v.toFixed(2)+'°':'∞';
+  let h='<tr><th></th>'+PH.map((p,j)=>`<th>${p.n}</th>`).join('')+'</tr>';
+  h+='<tr><th>Theory e<sub>ss</sub></th>'+PH.map((p,j)=>`<td class="${j==cur&&!done?'hl':''}">${th?f(th[j]):'—'}</td>`).join('')+'</tr>';
+  h+='<tr><th>Simulated error at end of phase</th>'+PH.map((p,j)=>{const reached=j<cur||done||(j==cur&&vt-starts[j]>=PH[j].T);
+    return `<td>${reached?(Math.abs(P[j].E[P[j].E.length-1])>=CL?'off scale':P[j].E[P[j].E.length-1].toFixed(2)+'°'):'—'}</td>`}).join('')+'</tr>';
+  $('tb').innerHTML=h;
+}
+function start(){
+  cancelAnimationFrame(raf);
+  P=PH.map(p=>sim(p.m,p.T));starts=[0,PH[0].T+GAP,PH[0].T+PH[1].T+2*GAP];
+  vt=0;paused=false;$('pp').textContent='Pause';
+  $('kpv').textContent=Kp;$('kiv').textContent=Ki;
+  $('tn').innerHTML=`System type N = ${typeN()}. Controller C(s) = ${Kp} + ${Ki}/s, plant G(s) = ${k?'1/(s+1)²':'1/[s(s+2)]'}.`;
+  last=performance.now();raf=requestAnimationFrame(frame);
+}
+function seg(id,set){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  [...$(id).children].forEach(x=>x.classList.toggle('on',x===b));set(+b.dataset.v)})}
+seg('ss',v=>{k=v;start()});seg('sp',v=>{speed=v});
+$('kp').addEventListener('input',e=>{Kp=+e.target.value;start()});
+$('ki').addEventListener('input',e=>{Ki=+e.target.value;start()});
+$('rs').onclick=start;
+$('pp').onclick=()=>{if(paused){paused=false;$('pp').textContent='Pause';last=performance.now();raf=requestAnimationFrame(frame)}else{paused=true;$('pp').textContent='Resume'}};
+start();
+</script></main><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body></html>

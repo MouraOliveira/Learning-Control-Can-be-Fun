@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stability of a DC Motor Position Control Loop</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1b;--mu:#6b6b66;--bd:#dcdcd6;--ok:#1a7f4b;--cr:#b7791f;--bad:#c0392b;--ac:#2563eb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--card:#222426;--tx:#ececea;--mu:#9a9a94;--bd:#3a3c3f;--ok:#4cc38a;--cr:#e5b04a;--bad:#ef6c5d;--ac:#6ea0ff;color-scheme:dark}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px;max-width:1000px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:0 0 8px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+p{margin:4px 0}.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-top:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 12px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--ac)}
+input[type=range]{flex:1;min-width:180px;accent-color:var(--ac)}
+.badge{display:inline-block;padding:3px 12px;border-radius:99px;font-weight:600;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+canvas{width:100%;height:300px;display:block}
+code,.m{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+table{border-collapse:collapse}td,th{padding:3px 14px;text-align:right}th{color:var(--mu);font-weight:500}
+.sm{color:var(--mu);font-size:13px}
+</style></head><body>
+<h1>Stability of a DC‑motor position control loop</h1>
+<p class="sm">A motor drives a load. Its angle θ is measured and compared with the reference θ<sub>ref</sub>; the controller is a pure gain K (proportional control).</p>
+
+<div class="card">
+<h2>Model</h2>
+<p>Plant (normalised): <code>G(s) = K / [ s (s+1)(s+2) ]</code> — an integrator (voltage → speed → angle), one pole at s = −1 from the mechanical time constant (τ<sub>m</sub> = 1 s) and one at s = −2 from the armature electrical time constant (τ<sub>e</sub> = 0.5 s).</p>
+<p>Closed loop (unity feedback): <code>T(s) = K / (s³ + 3s² + 2s + K)</code>. Poles = roots of the characteristic equation <code>s³ + 3s² + 2s + K = 0</code>.</p>
+</div>
+
+<div class="card">
+<div class="row"><b>Gain K</b><input id="k" type="range" min="0.1" max="12" step="0.1" value="2"><span class="m" id="kv">2.0</span></div>
+<div class="row" style="margin-top:8px">
+<button onclick="setK(2)">Stable (K = 2)</button>
+<button onclick="setK(6)">Critically stable (K = 6)</button>
+<button onclick="setK(10)">Unstable (K = 10)</button>
+<span id="badge" class="badge"></span>
+</div>
+</div>
+
+<div class="grid">
+<div class="card"><h2>s‑plane: closed‑loop poles</h2><canvas id="cp"></canvas>
+<p class="sm">Faint curve = root locus (poles as K varies 0 → 12). Dots = poles for the current K.</p></div>
+<div class="card"><h2>Unit‑step response θ(t)</h2><canvas id="cs"></canvas>
+<p class="sm">Dashed line = reference. Plot is clipped when the response diverges.</p></div>
+</div>
+
+<div class="grid">
+<div class="card"><h2>Closed‑loop poles</h2><div id="poles" class="m"></div><p id="expl" style="margin-top:10px"></p></div>
+<div class="card"><h2>Routh array</h2><div id="routh"></div>
+<p class="sm" style="margin-top:8px">Stable if the whole first column is positive: needs K &gt; 0 and (6 − K)/3 &gt; 0, i.e. 0 &lt; K &lt; 6. At K = 6 the s¹ row vanishes; the s² row gives 3s² + 6 = 0 → s = ±j√2 ≈ ±j1.414 rad/s.</p></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let K=2;
+function setK(v){K=v;$('k').value=v;update()}
+$('k').oninput=e=>{K=+e.target.value;if(Math.abs(K-6)<0.05)K=6;update()};
+
+// complex helpers & Durand-Kerner roots of s^3+3s^2+2s+K
+const cm=(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]];
+const cd=(a,b)=>{const d=b[0]*b[0]+b[1]*b[1];return[(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d]};
+function roots(k){
+  const f=s=>{const s2=cm(s,s),s3=cm(s2,s);return[s3[0]+3*s2[0]+2*s[0]+k,s3[1]+3*s2[1]+2*s[1]]};
+  let r=[[-0.4,0.9],[-1,-0.9],[-2,0.3]];
+  for(let it=0;it<200;it++)for(let i=0;i<3;i++){
+    let d=[1,0];for(let j=0;j<3;j++)if(j!==i)d=cm(d,[r[i][0]-r[j][0],r[i][1]-r[j][1]]);
+    const q=cd(f(r[i]),d);r[i]=[r[i][0]-q[0],r[i][1]-q[1]];}
+  return r.map(z=>[Math.abs(z[0])<1e-9?0:z[0],Math.abs(z[1])<1e-9?0:z[1]]);
+}
+function status(k,p){
+  const m=Math.max(...p.map(z=>z[0]));
+  if(Math.abs(k-6)<1e-6||Math.abs(m)<0.005)return 1; // critical
+  return m<0?0:2;
+}
+const ST=[{t:'STABLE',c:'--ok',e:'All poles lie in the open left half‑plane (Re s &lt; 0). Every mode decays: the angle settles to the reference. Lower K gives a calmer response; higher K gives more oscillation (poles move toward the imaginary axis).'},
+{t:'CRITICALLY STABLE',c:'--cr',e:'A pair of poles sits on the imaginary axis at s = ±j√2. The response is a sustained oscillation of constant amplitude (ω ≈ 1.414 rad/s): neither decaying nor growing. K = 6 is the limit gain.'},
+{t:'UNSTABLE',c:'--bad',e:'A complex‑conjugate pair of poles lies in the right half‑plane (Re s &gt; 0). The oscillation grows exponentially: the motor angle diverges (in practice until saturation or damage).'}];
+
+function setup(c){const r=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);g.clearRect(0,0,w,h);return[g,w,h]}
+function drawPoles(p,col){
+  const [g,w,h]=setup($('cp'));const x0=-4,x1=2,y0=-3,y1=3,m=26;
+  const X=x=>m+(x-x0)/(x1-x0)*(w-2*m),Y=y=>h-m-(y-y0)/(y1-y0)*(h-2*m);
+  // shaded RHP
+  g.fillStyle=css('--bad');g.globalAlpha=.08;g.fillRect(X(0),m,w-m-X(0),h-2*m);g.globalAlpha=1;
+  g.strokeStyle=css('--bd');g.fillStyle=css('--mu');g.font='11px system-ui';g.lineWidth=1;
+  for(let x=-4;x<=2;x++){g.beginPath();g.moveTo(X(x),m);g.lineTo(X(x),h-m);g.stroke();g.fillText(x,X(x)-3,h-10)}
+  for(let y=-3;y<=3;y++){g.beginPath();g.moveTo(m,Y(y));g.lineTo(w-m,Y(y));g.stroke();if(y)g.fillText(y,6,Y(y)+4)}
+  g.strokeStyle=css('--tx');g.lineWidth=1.5;
+  g.beginPath();g.moveTo(X(0),m);g.lineTo(X(0),h-m);g.moveTo(m,Y(0));g.lineTo(w-m,Y(0));g.stroke();
+  g.fillStyle=css('--mu');g.fillText('Re',w-m-14,Y(0)-6);g.fillText('Im',X(0)+6,m+10);
+  g.fillText('stable',X(-2.4)-10,m+12);g.fillText('unstable',X(0.35),m+12);
+  // root locus
+  g.strokeStyle=css('--ac');g.globalAlpha=.35;g.lineWidth=1.5;
+  const all=[];for(let k=0;k<=12.01;k+=0.1)all.push(roots(k));
+  for(let b=0;b<3;b++){}
+  all.forEach(rs=>rs.forEach(z=>{g.beginPath();g.arc(X(z[0]),Y(z[1]),1.3,0,7);g.fillStyle=css('--ac');g.fill()}));
+  g.globalAlpha=1;
+  // open-loop poles (x)
+  g.strokeStyle=css('--mu');g.lineWidth=1.5;[0,-1,-2].forEach(a=>{const x=X(a),y=Y(0);g.beginPath();g.moveTo(x-4,y-4);g.lineTo(x+4,y+4);g.moveTo(x+4,y-4);g.lineTo(x-4,y+4);g.stroke()});
+  // closed-loop poles
+  p.forEach(z=>{g.beginPath();g.arc(X(z[0]),Y(z[1]),6.5,0,7);g.fillStyle=col;g.fill();g.strokeStyle=css('--card');g.lineWidth=2;g.stroke()});
+}
+function step(k,T=24,dt=0.005){
+  let x=[0,0,0],t=0,out=[];const f=x=>[x[1],x[2],k*(1-x[0])-3*x[2]-2*x[1]];
+  const add=(a,b,s)=>a.map((v,i)=>v+s*b[i]);
+  for(let n=0;n<=T/dt;n++){
+    if(n%20===0)out.push([t,x[0]]);
+    const k1=f(x),k2=f(add(x,k1,dt/2)),k3=f(add(x,k2,dt/2)),k4=f(add(x,k3,dt));
+    x=x.map((v,i)=>v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));t+=dt;
+    if(Math.abs(x[0])>1e6)break;}
+  return out;
+}
+function drawStep(k,col){
+  const [g,w,h]=setup($('cs'));const T=24,m=30,ymax=3.5,ymin=-1.5;
+  const X=t=>m+t/T*(w-m-10),Y=y=>h-m-(y-ymin)/(ymax-ymin)*(h-m-10);
+  g.strokeStyle=css('--bd');g.fillStyle=css('--mu');g.font='11px system-ui';g.lineWidth=1;
+  for(let y=-1;y<=3;y++){g.beginPath();g.moveTo(m,Y(y));g.lineTo(w-10,Y(y));g.stroke();g.fillText(y,10,Y(y)+4)}
+  for(let t=0;t<=T;t+=4){g.beginPath();g.moveTo(X(t),10);g.lineTo(X(t),h-m);g.stroke();g.fillText(t+' s',X(t)-8,h-12)}
+  g.setLineDash([5,4]);g.strokeStyle=css('--tx');g.beginPath();g.moveTo(m,Y(1));g.lineTo(w-10,Y(1));g.stroke();g.setLineDash([]);
+  g.save();g.beginPath();g.rect(m,10,w-m-10,h-m-10);g.clip();
+  g.strokeStyle=col;g.lineWidth=2.5;g.beginPath();
+  step(k).forEach(([t,y],i)=>{const yy=Math.max(-50,Math.min(50,y));i?g.lineTo(X(t),Y(yy)):g.moveTo(X(t),Y(yy))});
+  g.stroke();g.restore();
+}
+function update(){
+  const p=roots(K),s=status(K,p),col=css(ST[s].c);
+  $('kv').textContent=K.toFixed(1);
+  const b=$('badge');b.textContent=ST[s].t;b.style.background=col;
+  $('poles').innerHTML=p.slice().sort((a,b)=>b[1]-a[1]).map((z,i)=>`p${i+1} = ${z[0].toFixed(3)} ${z[1]<0?'−':'+'} j${Math.abs(z[1]).toFixed(3)}`).join('<br>');
+  $('expl').innerHTML=ST[s].e;
+  const a=(6-K)/3,f=v=>v.toFixed(2),c=v=>`style="color:${v>0.005?css('--ok'):v<-0.005?css('--bad'):css('--cr')}"`;
+  $('routh').innerHTML=`<table class="m"><tr><th>s³</th><td>1</td><td>2</td></tr><tr><th>s²</th><td>3</td><td>${f(K)}</td></tr><tr><th>s¹</th><td ${c(a)}>${f(a)}</td><td>0</td></tr><tr><th>s⁰</th><td>${f(K)}</td><td></td></tr></table>`;
+  drawPoles(p,col);drawStep(K,col);
+}
+addEventListener('resize',update);update();
+</script><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body></html>

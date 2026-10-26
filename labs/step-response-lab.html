@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Step response lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f3;--pn:#fff;--ink:#16222c;--mu:#5d6b76;--ln:#d5dce1;--y:#0b6e8a;--os:#c2410c;--ar:#d9930d;--c1:#0b6e8a;--c2:#c2410c;--c3:#7c3aed;--c4:#15803d;color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#11181d;--pn:#19232a;--ink:#e6edf1;--mu:#93a2ad;--ln:#2b3a44;--y:#4cc3e0;--os:#fb923c;--ar:#f5b84a;--c1:#4cc3e0;--c2:#fb923c;--c3:#a78bfa;--c4:#4ade80;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#11181d;--pn:#19232a;--ink:#e6edf1;--mu:#93a2ad;--ln:#2b3a44;--y:#4cc3e0;--os:#fb923c;--ar:#f5b84a;--c1:#4cc3e0;--c2:#fb923c;--c3:#a78bfa;--c4:#4ade80;color-scheme:dark}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Instrument Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 40px}
+h1{font:600 30px/1.1 Newsreader,Georgia,serif;margin:0 0 4px}
+.sub{color:var(--mu);margin:0 0 18px;max-width:70ch}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+h2{font:600 18px/1.2 Newsreader,Georgia,serif;margin:0 0 10px}
+label{display:flex;justify-content:space-between;font-weight:500;margin-top:8px}
+label b{font-weight:600}
+input[type=range]{width:100%;accent-color:var(--y)}
+select,button{font:inherit;color:var(--ink);background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover{border-color:var(--mu)}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tabs button{display:flex;align-items:center;gap:6px}
+.tabs button[aria-pressed=true]{background:var(--ink);color:var(--pn);border-color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:right;padding:5px 4px;border-bottom:1px solid var(--ln);font-size:14px}
+th:first-child,td:first-child{text-align:left}th{font-weight:500;color:var(--mu)}
+td small{color:var(--mu);display:block;font-size:12px}
+svg{width:100%;height:auto;display:block;touch-action:pan-y}
+.ax{stroke:var(--ln);stroke-width:1}.tx{fill:var(--mu);font-size:11px}
+.ro{min-height:22px;color:var(--mu);font-size:14px;margin-top:6px}.ro b{color:var(--ink);font-weight:600}
+.note{color:var(--mu);margin:6px 0 0}
+.f{font-family:Newsreader,Georgia,serif;font-size:18px;margin:2px 0 6px}
+</style></head><body><div class="wrap">
+<h1>Step response lab</h1>
+<p class="sub">Drag the damping ratio and natural frequency of G(s) = ωn² / (s² + 2ζωn s + ωn²) and watch the transient specifications and the integral-of-error indices respond. Hover or touch the plots to read values at a given time.</p>
+<div class="grid">
+<div>
+ <div class="card"><h2>System</h2>
+  <label for="z">Damping ratio ζ <b id="zv"></b></label><input id="z" type="range" min="0.05" max="2" step="0.01" value="0.3">
+  <label for="w">Natural frequency ωn (rad/s) <b id="wv"></b></label><input id="w" type="range" min="0.5" max="10" step="0.1" value="2">
+  <label for="tol">Settling band</label><select id="tol"><option value="0.02">±2 %</option><option value="0.05">±5 %</option></select>
+  <div class="row" id="pre"><button data-z="0.2">Lightly damped</button><button data-z="0.5">ζ = 0.5</button><button data-z="0.707">ζ = 0.707</button><button data-z="1">Critical</button><button data-z="1.6">Overdamped</button></div>
+ </div>
+ <div class="card"><h2>Time-domain specifications</h2>
+  <table id="mt"></table>
+ </div>
+ <div class="card"><h2>Frequency-domain companions</h2><table id="ft"></table>
+  <p class="note">Closed-form values from ζ and ωn. They show how the same damping ratio sets resonance, bandwidth and phase margin of the unity-feedback loop ωn² / (s(s + 2ζωn)).</p></div>
+</div>
+<div>
+ <div class="card"><div class="row tabs" id="tabs" style="margin:0 0 8px"></div>
+  <svg id="pl" viewBox="0 0 800 478" role="img" aria-label="Step response and error plots"></svg>
+  <div class="ro" id="ro"></div></div>
+ <div class="card"><h2 id="ih"></h2><div class="f" id="if"></div><p class="note" id="id"></p>
+  <table id="it" style="margin-top:10px"></table></div>
+ <div class="card"><h2>Which ζ minimizes each index?</h2>
+  <svg id="sw" viewBox="0 0 800 230" role="img" aria-label="Normalized integral indices versus damping ratio"></svg>
+  <p class="note">Each index is divided by its own minimum (ωn scales every curve equally, so the shape does not depend on it). Curves are clipped at 3×. The dashed line marks your current ζ.</p></div>
+</div></div></div>
+<script>
+const $=i=>document.getElementById(i),W=800,L=54,R=14,S={z:.3,w:2,tol:.02,mode:'tr',cur:null};
+const F={iae:(t,e)=>Math.abs(e),ise:(t,e)=>e*e,itae:(t,e)=>t*Math.abs(e),itse:(t,e)=>t*e*e};
+const M={iae:{n:'IAE',f:'∫ |e(t)| dt',c:'--c1',d:'Every unit of error counts the same, so a long low tail costs as much as its area suggests.'},
+ise:{n:'ISE',f:'∫ e(t)² dt',c:'--c2',d:'Squaring punishes big early errors and forgives small lingering ones, which favors fast rise but tolerates ringing.'},
+itae:{n:'ITAE',f:'∫ t·|e(t)| dt',c:'--c3',d:'The time weight makes late errors expensive, so the best design settles cleanly with little overshoot.'},
+itse:{n:'ITSE',f:'∫ t·e(t)² dt',c:'--c4',d:'A compromise: a large early error is tolerated, but errors that persist are penalized heavily.'}};
+const fm=(v,d=3)=>v==null||!isFinite(v)?'—':v.toFixed(d);
+function resp(z,w,Th,N){const t=new Float64Array(N+1),y=new Float64Array(N+1);for(let i=0;i<=N;i++){const x=Th*i/N;let v;t[i]=x;
+ if(z<.9999){const k=Math.sqrt(1-z*z);v=1-Math.exp(-z*w*x)*(Math.cos(w*k*x)+z/k*Math.sin(w*k*x))}
+ else if(z<1.0001)v=1-(1+w*x)*Math.exp(-w*x);
+ else{const s=w*Math.sqrt(z*z-1),a=z*w-s,b=z*w+s;v=1-(b*Math.exp(-a*x)-a*Math.exp(-b*x))/(b-a)}
+ y[i]=v}return{t,y}}
+function cum(t,g){const c=new Float64Array(t.length);for(let i=1;i<t.length;i++)c[i]=c[i-1]+.5*(g[i]+g[i-1])*(t[i]-t[i-1]);return c}
+function cross(t,y,lv){for(let i=1;i<y.length;i++)if(y[i-1]<lv&&y[i]>=lv)return t[i-1]+(lv-y[i-1])/(y[i]-y[i-1])*(t[i]-t[i-1]);return null}
+function ticks(a,b,n){const r=(b-a)/n,p=10**Math.floor(Math.log10(r)),m=r/p,s=(m<1.5?1:m<3?2:m<7?5:10)*p,o=[];for(let v=Math.ceil(a/s-1e-9)*s;v<=b+1e-9;v+=s)o.push(+v.toFixed(10));return o}
+const SW=(()=>{const zs=[],o={iae:[],ise:[],itae:[],itse:[]};for(let z=.1;z<=1.6001;z+=.02){zs.push(z);const{t,y}=resp(z,1,60,1200);for(const k in F)o[k].push(cum(t,t.map((x,i)=>F[k](x,1-y[i])))[1200])}
+ const best={};for(const k in o){const m=Math.min(...o[k]);best[k]=zs[o[k].indexOf(m)];o[k]=o[k].map(v=>v/m)}return{zs,o,best}})();
+function render(){
+ const{z,w,tol,mode}=S,sg=z<1?z*w:w*(z-Math.sqrt(Math.max(0,z*z-1))),Th=Math.min(120,Math.max(7/sg,3/w)),N=1000,{t,y}=resp(z,w,Th,N);
+ const e=y.map(v=>1-v),G={},C={};for(const k in F){G[k]=t.map((x,i)=>F[k](x,e[i]));C[k]=cum(t,G[k])}
+ let pk=0;for(let i=0;i<=N;i++)if(y[i]>y[pk])pk=i;const mp=Math.max(0,y[pk]-1),os=mp>5e-4;
+ let k2=-1;for(let i=0;i<=N;i++)if(Math.abs(1-y[i])>tol)k2=i;const Ts=k2<0?0:k2>=N?null:t[k2+1];
+ const pks=[];for(let i=1;i<N;i++)if(y[i]>y[i-1]&&y[i]>=y[i+1]&&y[i]>1)pks.push(i);
+ const Td=cross(t,y,.5),Tr1=cross(t,y,1),t10=cross(t,y,.1),t90=cross(t,y,.9),Tr19=t10!=null&&t90!=null?t90-t10:null;
+ const u=z<1,k=Math.sqrt(Math.max(0,1-z*z)),wd=w*k,Mp=u?Math.exp(-Math.PI*z/k):0;
+ const dr=pks.length>1?(y[pks[1]]-1)/(y[pks[0]]-1):null,per=pks.length>1?t[pks[1]]-t[pks[0]]:null;
+ const row=(a,b,c,d)=>`<tr><td>${a}${b?`<small>${b}</small>`:''}</td><td>${c}</td><td>${d}</td></tr>`;
+ $('mt').innerHTML=`<tr><th></th><th>Formula</th><th>Measured</th></tr>`+
+ row('Delay time Td','≈ (1 + 0.7ζ)/ωn · 50 %',u?fm((1+.7*z)/w)+' s':'—',fm(Td)+' s')+
+ row('Rise time Tr','0 → 100 %: (π − acos ζ)/ωd',u?fm((Math.PI-Math.acos(z))/wd)+' s':'—',fm(Tr1)+' s')+
+ row('Rise time Tr','10 → 90 %','—',fm(Tr19)+' s')+
+ row('Peak time Tp','π/ωd',u?fm(Math.PI/wd)+' s':'—',os?fm(t[pk])+' s':'—')+
+ row('Overshoot Mp','exp(−πζ/√(1−ζ²))',u?fm(Mp*100,1)+' %':'0 %',fm(mp*100,1)+' %')+
+ row('Settling time Ts','≈ '+fm(-Math.log(tol),2)+'/(ζωn), ±'+tol*100+' %',u?fm(-Math.log(tol)/(z*w))+' s':'—',fm(Ts)+' s')+
+ row('Decay ratio','Mp²',u?fm(Mp*Mp,4):'—',fm(dr,4))+
+ row('Oscillation period','2π/ωd',u?fm(2*Math.PI/wd)+' s':'—',per!=null?fm(per)+' s':'—')+
+ row('Steady-state error','e(∞) for a unit step','0',fm(e[N],4));
+ const mr=z<.7071?1/(2*z*Math.sqrt(1-z*z)):1,wb=w*Math.sqrt(1-2*z*z+Math.sqrt(4*z**4-4*z*z+2)),pm=Math.atan(2*z/Math.sqrt(Math.sqrt(1+4*z**4)-2*z*z))*180/Math.PI;
+ $('ft').innerHTML=row('Resonant peak Mr','1/(2ζ√(1−ζ²))',fm(mr,2),'')+row('Bandwidth ωb','−3 dB',fm(wb,2)+' rad/s','')+row('Phase margin','unity-feedback loop',fm(pm,1)+'°','');
+ $('zv').textContent=z.toFixed(2);$('wv').textContent=w.toFixed(1);
+ // plot
+ const T0=12,TH=236,B0=292,BH=150,sx=x=>L+x/Th*(W-L-R);let mx=0;for(const v of y)mx=Math.max(mx,v);
+ const ya=0,yb=Math.max(1.2,mx*1.06),sy=v=>T0+TH-(v-ya)/(yb-ya)*TH;
+ const ci=S.cur==null?N:Math.max(0,Math.min(N,Math.round(S.cur/Th*N))),tc=t[ci];
+ let ba,bb,gb;const im=mode!='tr';
+ if(im){let m=0;for(const v of G[mode])m=Math.max(m,v);ba=0;bb=m*1.1||1}else{let mn=0;for(const v of e)mn=Math.min(mn,v);ba=mn*1.1-.05;bb=1.05}
+ const sb=v=>B0+BH-(v-ba)/(bb-ba)*BH,P=(a,f)=>{let s='';for(let i=0;i<=N;i+=2)s+=(i?'L':'M')+sx(t[i]).toFixed(1)+' '+f(a[i]).toFixed(1);return s};
+ let s='';
+ for(const v of ticks(ya,yb,5))s+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${sy(v)}" y2="${sy(v)}"/><text class="tx" x="${L-6}" y="${sy(v)+4}" text-anchor="end">${v}</text>`;
+ for(const v of ticks(ba,bb,4))s+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${sb(v)}" y2="${sb(v)}"/><text class="tx" x="${L-6}" y="${sb(v)+4}" text-anchor="end">${+v.toPrecision(3)}</text>`;
+ for(const v of ticks(0,Th,8))s+=`<line class="ax" x1="${sx(v)}" x2="${sx(v)}" y1="${T0}" y2="${B0+BH}" style="opacity:.45"/><text class="tx" x="${sx(v)}" y="${B0+BH+16}" text-anchor="middle">${v}</text>`;
+ s+=`<text class="tx" x="${W-R}" y="${B0+BH+32}" text-anchor="end">time t (s)</text><text class="tx" x="${L}" y="${T0-1}">y(t)</text><text class="tx" x="${L}" y="${B0-6}">${im?M[mode].n+' integrand':'error e(t) = 1 − y(t)'}</text>`;
+ const area=(arr,f,base,to,op)=>{let d=`M${sx(0)} ${base}`;for(let i=0;i<=to;i+=2)d+=`L${sx(t[i]).toFixed(1)} ${f(arr[i]).toFixed(1)}`;return `<path d="${d}L${sx(t[to])} ${base}Z" fill="var(--ar)" opacity="${op}"/>`};
+ if(im){s+=area(y,sy,sy(1),N,.18)+area(y,sy,sy(1),ci,.5);s+=area(G[mode],sb,sb(0),N,.18)+area(G[mode],sb,sb(0),ci,.5)+`<path d="${P(G[mode],sb)}" fill="none" stroke="var(${M[mode].c})" stroke-width="2"/>`}
+ else{s+=`<rect x="${L}" y="${sy(1+tol)}" width="${W-L-R}" height="${sy(1-tol)-sy(1+tol)}" fill="var(--y)" opacity=".12"/>`+`<rect x="${L}" y="${sb(tol)}" width="${W-L-R}" height="${sb(-tol)-sb(tol)}" fill="var(--y)" opacity=".12"/><path d="${P(e,sb)}" fill="none" stroke="var(--os)" stroke-width="2"/>`}
+ s+=`<line x1="${L}" x2="${W-R}" y1="${sy(1)}" y2="${sy(1)}" stroke="var(--mu)" stroke-dasharray="5 4"/><path d="${P(y,sy)}" fill="none" stroke="var(--y)" stroke-width="2.4"/>`;
+ if(!im){const mk=[['Td',Td],['Tr',Tr1??t90],['Tp',os?t[pk]:null],['Ts',Ts]],yy=x=>y[Math.min(N,Math.round(x/Th*N))];
+  mk.forEach(([n,x],j)=>{if(x==null)return;s+=`<line x1="${sx(x)}" x2="${sx(x)}" y1="${T0}" y2="${B0+BH}" stroke="var(--ink)" stroke-dasharray="2 4" opacity=".55"/><circle cx="${sx(x)}" cy="${sy(yy(x))}" r="4" fill="var(--pn)" stroke="var(--ink)" stroke-width="1.6"/><text x="${sx(x)+4}" y="${T0+12+j*13}" font-size="12" font-weight="600" fill="var(--ink)">${n}</text>`});
+  if(os)s+=`<line x1="${sx(t[pk])}" x2="${W-R}" y1="${sy(y[pk])}" y2="${sy(y[pk])}" stroke="var(--os)" stroke-dasharray="3 3"/><text x="${W-R}" y="${sy(y[pk])-5}" text-anchor="end" font-size="12" font-weight="600" fill="var(--os)">Mp = ${fm(mp*100,1)} %</text>`;
+  s+=`<text class="tx" x="${W-R}" y="${sy(1-tol)+(os?14:-4)}" text-anchor="end">±${tol*100} % band</text>`}
+ if(S.cur!=null)s+=`<line x1="${sx(tc)}" x2="${sx(tc)}" y1="${T0}" y2="${B0+BH}" stroke="var(--ink)" stroke-width="1.2"/>`;
+ $('pl').innerHTML=s;
+ $('ro').innerHTML=S.cur==null?'Hover or touch the plot to read values at a time t.':`t = <b>${fm(tc,3)} s</b> &nbsp; y = <b>${fm(y[ci],4)}</b> &nbsp; e = <b>${fm(e[ci],4)}</b>`+(im?` &nbsp; integrand = <b>${fm(G[mode][ci],4)}</b> &nbsp; ${M[mode].n}(0→t) = <b>${fm(C[mode][ci],4)}</b>`:'');
+ // tabs
+ $('tabs').innerHTML=[['tr','Transient marks','--mu'],...Object.keys(M).map(k=>[k,M[k].n,M[k].c])].map(([k,n,c])=>`<button data-m="${k}" aria-pressed="${mode==k}"><span class="dot" style="background:var(${c})"></span>${n}</button>`).join('');
+ const sh=im?mode:'itae';
+ $('ih').textContent=im?M[mode].n+' — '+{iae:'integral of absolute error',ise:'integral of squared error',itae:'integral of time-weighted absolute error',itse:'integral of time-weighted squared error'}[mode]:'Integral-of-error indices';
+ $('if').textContent=im?M[mode].f.replace('∫','∫₀ᵀ')+' = '+fm(C[mode][ci],4):'Select IAE, ISE, ITAE or ITSE above to see the error area and integrand.';
+ $('id').textContent=im?M[mode].d+` Over this ζ range the minimum falls near ζ ≈ ${SW.best[mode].toFixed(2)}. T = ${fm(Th,2)} s.`:`T = ${fm(Th,2)} s is the plotted horizon, about 7 time constants of the slowest mode.`;
+ $('it').innerHTML='<tr><th>Index</th><th>Definition</th><th>Value over [0, T]</th><th>Best ζ</th></tr>'+Object.keys(M).map(k=>`<tr><td><span class="dot" style="background:var(${M[k].c})"></span> <b>${M[k].n}</b></td><td>${M[k].f}</td><td>${fm(C[k][N],4)}</td><td>${SW.best[k].toFixed(2)}</td></tr>`).join('');
+ // sweep
+ const sx2=v=>L+(v-.1)/1.5*(W-L-R),sy2=v=>206-(v-1)/2*190;let q='';
+ for(const v of [1,1.5,2,2.5,3])q+=`<line class="ax" x1="${L}" x2="${W-R}" y1="${sy2(v)}" y2="${sy2(v)}"/><text class="tx" x="${L-6}" y="${sy2(v)+4}" text-anchor="end">${v}×</text>`;
+ for(const v of [.2,.4,.6,.8,1,1.2,1.4,1.6])q+=`<text class="tx" x="${sx2(v)}" y="224" text-anchor="middle">${v}</text>`;
+ for(const k in M){q+=`<path d="${SW.zs.map((v,i)=>(i?'L':'M')+sx2(v).toFixed(1)+' '+sy2(Math.min(3,SW.o[k][i])).toFixed(1)).join('')}" fill="none" stroke="var(${M[k].c})" stroke-width="${k==sh&&im?3.2:1.8}"/>`;
+  q+=`<circle cx="${sx2(SW.best[k])}" cy="${sy2(1)}" r="3.5" fill="var(${M[k].c})"/>`}
+ const zc=Math.min(1.6,Math.max(.1,z));q+=`<line x1="${sx2(zc)}" x2="${sx2(zc)}" y1="10" y2="206" stroke="var(--ink)" stroke-dasharray="4 4"/><text class="tx" x="${sx2(zc)+4}" y="22">ζ = ${z.toFixed(2)}</text><text class="tx" x="${W-R}" y="10" text-anchor="end">damping ratio ζ</text>`;
+ $('sw').innerHTML=q}
+$('z').oninput=ev=>{S.z=+ev.target.value;render()};$('w').oninput=ev=>{S.w=+ev.target.value;render()};
+$('tol').onchange=ev=>{S.tol=+ev.target.value;render()};
+$('pre').onclick=ev=>{const v=ev.target.dataset.z;if(v){S.z=+v;$('z').value=v;render()}};
+$('tabs').onclick=ev=>{const b=ev.target.closest('button');if(b){S.mode=b.dataset.m;render()}};
+const pl=$('pl'),mv=ev=>{const r=pl.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*W;S.cur=Math.max(0,Math.min(1,(x-L)/(W-L-R)))*S._Th;render()};
+pl.onpointermove=ev=>mv(ev);pl.onpointerleave=()=>{S.cur=null;render()};
+(function(){const o=render;render=function(){const sg=S.z<1?S.z*S.w:S.w*(S.z-Math.sqrt(Math.max(0,S.z*S.z-1)));S._Th=Math.min(120,Math.max(7/sg,3/S.w));if(S.cur!=null)S.cur=Math.min(S.cur,S._Th);o()}})();
+render();
+</script><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body></html>

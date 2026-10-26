@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Feedforward Control Lab</title>
+<style>
+:root{--bg:#f7f7f4;--card:#fff;--tx:#1d1d1b;--mut:#6b6b66;--bd:#dcdcd5;--ac:#1c7ed6;--grid:#e6e6e0;--warn:#b35c00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#16171a;--card:#202226;--tx:#ececea;--mut:#9a9a94;--bd:#33353a;--grid:#2b2d32;--warn:#ffb454}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#16171a;--card:#202226;--tx:#ececea;--mut:#9a9a94;--bd:#33353a;--grid:#2b2d32;--warn:#ffb454}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:14px 18px 6px}h1{margin:0;font-size:20px}header p{margin:2px 0 0;color:var(--mut)}
+.pre{display:flex;flex-wrap:wrap;gap:6px;padding:8px 18px}
+button.p{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:5px 10px;border-radius:16px;cursor:pointer;font:inherit;font-size:12.5px}
+button.p.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#desc{margin:0 18px 8px;padding:10px 14px;background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:8px}
+#desc b{display:block;margin-bottom:2px}#desc .ob{color:var(--mut);margin-top:4px}
+.grid{display:grid;grid-template-columns:320px 1fr;gap:12px;padding:0 18px 20px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+aside,.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px 12px}
+aside details{border-bottom:1px solid var(--bd);padding:4px 0}aside details:last-child{border:0}
+summary{cursor:pointer;font-weight:600;padding:4px 0}
+.row{display:grid;grid-template-columns:1fr 54px;gap:2px 8px;margin:5px 0;font-size:12.5px}
+.row input[type=range]{grid-column:1/3;width:100%;margin:0}.row output{text-align:right;font-variant-numeric:tabular-nums;color:var(--ac);font-weight:600}
+select{width:100%;padding:4px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:5px;margin:3px 0}
+canvas{width:100%;height:520px;display:block}
+.leg{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0}.leg label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.sw{width:22px;height:4px;border-radius:2px;display:inline-block}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--bd);text-align:right}th:first-child,td:first-child{text-align:left}
+.dg{margin:8px 0 0;padding-left:18px}.dg li{margin:3px 0}.dg .w{color:var(--warn)}
+.th{margin-top:10px;color:var(--mut);font-size:13px}.th code{color:var(--tx)}
+.rb{margin-top:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit}
+</style></head><body>
+<header><h1>Feedforward Control Lab</h1>
+<p>Output-disturbance compensation: feedforward (FF) alone vs. feedback (FB) alone vs. FB + FF. Pick a scenario, then tweak anything.</p></header>
+<div class="pre" id="pre"></div>
+<div id="desc"></div>
+<div class="grid">
+<aside id="ctl"></aside>
+<main>
+<div class="card"><canvas id="cv"></canvas>
+<div class="leg" id="leg"></div></div>
+<div class="card" style="margin-top:12px"><div class="tw"><table id="met"></table></div><ul class="dg" id="dg"></ul>
+<div class="th"><b>Theory.</b> Process: <code>y = Gp·u + Gd·d</code>, with <code>Gp = Kp e<sup>−θp s</sup>/(τp s+1)</code> and <code>Gd = Kd e<sup>−θd s</sup>/(τd s+1)</code>. Perfect cancellation needs <code>u = −(Gd/Gp)·d</code>, i.e. <code>Gff = (Kd/Kp)·(τp s+1)/(τd s+1)·e<sup>−(θd−θp)s</sup></code>. It is realizable only if θd ≥ θp (plus any measurement delay) and the actuator can supply the required lead. Static FF keeps only the gain <code>Kd/Kp</code>. FB (PI) corrects whatever FF leaves behind but only after the error appears.</div></div>
+</main></div>
+<script>
+const $=id=>document.getElementById(id);
+// ---------- parameter definitions ----------
+const G=[
+['Plant & disturbance (true process)',[
+['Kp','Plant gain Kp',.2,4,.05,2],['tp','Plant time const. τp [s]',.2,20,.1,5],['thp','Plant delay θp [s]',0,8,.1,1],
+['Kd','Disturbance gain Kd',.2,4,.05,1.5],['td','Dist. time const. τd [s]',.2,20,.1,8],['thd','Dist. delay θd [s]',0,10,.1,3],
+['Au','Unmeasured disturbance (step at T/2)',-2,2,.1,0]]],
+['FF model errors (model − true)',[
+['eKp','Plant gain error [%]',-80,200,5,0],['eTp','Plant τ error [%]',-80,200,5,0],['eThp','Plant delay error [s]',-4,4,.1,0],
+['eKd','Dist. gain error [%]',-80,200,5,0],['eTd','Dist. τ error [%]',-80,200,5,0],['eThd','Dist. delay error [s]',-4,4,.1,0]]],
+['FF implementation limits',[
+['nFF','Disturbance sensor noise σ',0,.3,.01,0],['mD','Sensor/transport delay [s]',0,6,.1,0],
+['gE','FF actuator gain error [%]',-50,50,5,0],['um','Actuator limit |u|max',.2,10,.1,10]]],
+['Feedback (PI)',[
+['Kc','Kc',0,3,.05,.8],['Ti','Ti [s]',1,40,.5,5],['nFB','Output sensor noise σ',0,.2,.01,0]]],
+['Disturbance signal',[['A','Amplitude',.2,3,.1,1],['Pd','Sine period [s]',4,60,1,20],['T','Horizon [s]',40,200,10,80]]]];
+const def={};G.forEach(g=>g[1].forEach(r=>def[r[0]]=r[5]));def.dtype='step';def.fft='dyn';
+let S={...def};
+// ---------- build UI ----------
+const ctl=$('ctl');
+ctl.innerHTML=`<details open><summary>Configuration</summary>
+<label>Disturbance type<select id="dtype"><option value="step">Step</option><option value="pulse">Pulse</option><option value="ramp">Ramp-and-hold</option><option value="sine">Sinusoid</option><option value="rand">Random steps</option></select></label>
+<label>Feedforward type<select id="fft"><option value="dyn">Dynamic (lead-lag + delay)</option><option value="sta">Static (gain only)</option></select></label>
+<button class="rb" id="rst">Reset to ideal</button></details>`;
+const outs={},ins={};
+G.forEach((g,i)=>{const d=document.createElement('details');if(i==0||i==1)d.open=true;
+d.innerHTML='<summary>'+g[0]+'</summary>';
+g[1].forEach(r=>{const w=document.createElement('div');w.className='row';
+w.innerHTML=`<span>${r[1]}</span><output></output><input type="range" min="${r[2]}" max="${r[3]}" step="${r[4]}">`;
+const inp=w.querySelector('input'),o=w.querySelector('output');ins[r[0]]=inp;outs[r[0]]=o;
+inp.oninput=()=>{S[r[0]]=+inp.value;preset=-1;run()};d.appendChild(w)});ctl.appendChild(d)});
+$('dtype').onchange=e=>{S.dtype=e.target.value;run()};$('fft').onchange=e=>{S.fft=e.target.value;run()};
+$('rst').onclick=()=>{S={...def};preset=0;sync();run()};
+function sync(){for(const k in ins){ins[k].value=S[k]}$('dtype').value=S.dtype;$('fft').value=S.fft;
+document.querySelectorAll('button.p').forEach((b,i)=>b.classList.toggle('on',i==preset))}
+// ---------- presets ----------
+const PR=[
+['1 Ideal FF',{},'Ideal / perfect feedforward','Exact model, causal (θd ≥ θp), no noise, no limits. The FF law is the exact inverse Gd/Gp.','FF alone and FB+FF give y ≡ 0 (a flat line). FB alone must wait for an error, so it shows a peak and slow recovery. This is the best case, and it is rarely reachable in practice.'],
+['2 Gain mismatch',{eKd:-25,eKp:20},'Model mismatch: gains','Disturbance gain underestimated by 25% and plant gain overestimated by 20%, so FF under-compensates.','FF alone leaves a permanent offset proportional to the gain error. Adding FB removes the offset by integral action, and the peak stays smaller than with FB alone. This is why FB+FF is the practical standard.'],
+['3 Dynamic mismatch',{eTd:-50,eTp:60},'Model mismatch: time constants','Wrong τ values break the lead-lag match: the steady state is right but the transient is not.','FF alone has no steady-state offset, but a bump during the transient. Compare with Static FF (switch the type) and see if the wrong dynamics still beat none.'],
+['4 Delay mismatch',{eThd:-2.5},'Model mismatch: delay','The model thinks the disturbance arrives 2.5 s earlier than it truly does, so FF acts too early. The correction hits the output before the disturbance does, then the disturbance arrives uncancelled.','Look for a spike in the opposite direction followed by the disturbance effect. Delay errors are the most damaging: one error produces two errors, and in the wrong order.'],
+['5 Static vs dynamic',{fft:'sta',tp:3,td:12,thd:2,thp:1,dtype:'step'},'Static vs. dynamic FF','Plant (τp=3) is faster than disturbance (τd=12). Static FF applies the right steady-state gain with no dynamics.','Static FF is already decent when dynamics match closely; the error is the area between the two time constants. Switch to Dynamic: the error disappears. Then try the sinusoid: static degrades as frequency rises.'],
+['6 Plant faster',{tp:1,td:14,thp:.5,thd:2,fft:'sta'},'Plant faster than disturbance','With τp ≪ τd, the plant follows u almost instantly, so the required lead-lag is near 1 and static FF is almost perfect.','Static ≈ dynamic here, and the simple solution wins. FB alone also does well because the disturbance is slow relative to the loop.'],
+['7 Plant slower',{tp:12,td:2,thd:3,um:3,Kc:.5,Ti:10},'Plant slower than disturbance','With τp ≫ τd, ideal FF needs a large lead (τp/τd = 6): a violent initial kick in u to make the slow plant counteract a fast disturbance.','The u-plot shows a large spike that hits the actuator limit (3). Saturation ruins the perfect cancellation. FB alone is slow (the plant is sluggish). Even dynamic FF is limited by actuator capability, not by the math.'],
+['8 Non-causal',{thp:4,thd:.5,thd:.5},'Plant delay longer than disturbance delay','θp = 4 s but the disturbance reaches the output after only 0.5 s. The needed FF delay (θd−θp) is negative: the controller would have to act before measuring.','Perfect FF is impossible: a transient error appears at least for 3.5 s no matter how exact the model. FB can’t help earlier either. Only a better (earlier) measurement location would fix this. The lab clips the FF delay at 0.'],
+['9 Noisy sensor',{tp:8,td:2,thd:4,nFF:.06,mD:1.5,nFB:.02},'Noisy and delayed measurement','The disturbance sensor is noisy and its signal is delayed by 1.5 s. The lead-lag (τp/τd = 4) amplifies noise, and the delay eats the available lead time.','FF injects noise into u and so into y. The delay reduces its advantage. Reduce the noise or the delay and watch FF recover. FB+FF still adds robustness.'],
+['10 Saturation',{um:.6,A:2},'Actuator saturation','Large disturbance (A=2) but the actuator can supply only |u|≤0.6, while ideal FF needs about 1.5.','Even a perfect FF can’t cancel what the actuator can’t deliver. Anti-windup is included in the PI. Try raising the limit until the FF becomes perfect again.'],
+['11 Unmeasured disturbance',{Au:1,dtype:'pulse'},'Unmeasured disturbance','At T/2 an extra disturbance enters through the same path but the FF sensor does not see it.','FF alone ignores it completely. FB reacts. FB+FF handles the measured one proactively and the unmeasured one reactively. This is the fundamental reason FF never replaces FB.'],
+['12 Sinusoidal',{dtype:'sine',fft:'sta',Pd:12,eTd:0},'Static FF vs. disturbance frequency','A sinusoidal disturbance with period 12 s, vs. a static FF.','At this frequency, the plant’s own lag makes static FF misaligned in phase and gain. Switch to Dynamic and the match returns. Static FF works only at low frequency (slow disturbances).']
+];
+let preset=0;
+const pre=$('pre');PR.forEach((p,i)=>{const b=document.createElement('button');b.className='p';b.textContent=p[0];
+b.onclick=()=>{S={...def,...p[1]};preset=i;sync();run()};pre.appendChild(b)});
+// ---------- simulation ----------
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){return Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(6.2832*r())}
+class Dly{constructor(n){this.n=n;this.b=new Float64Array(Math.max(n,1));this.i=0}push(x){if(!this.n)return x;const o=this.b[this.i];this.b[this.i]=x;this.i=(this.i+1)%this.n;return o}}
+function dist(t,p,rs){const A=p.A;
+switch(p.dtype){case'step':return t>=5?A:0;case'pulse':return t>=5&&t<25?A:0;
+case'ramp':return t<5?0:Math.min(A,A*(t-5)/20);case'sine':return t<5?0:A*Math.sin(6.2832*(t-5)/p.Pd);
+default:return A*rs[Math.floor(t/15)%rs.length]}}
+function sim(p,ff,fb){const dt=.05,N=Math.round(p.T/dt),R=rng(7);
+const rs=Array.from({length:40},()=>R()*2-1);
+const mx=(v,m)=>Math.max(m,v);
+const Kpm=mx(p.Kp*(1+p.eKp/100),.05),Tpm=mx(p.tp*(1+p.eTp/100),.05),Thpm=mx(p.thp+p.eThp,0);
+const Kdm=mx(p.Kd*(1+p.eKd/100),.05),Tdm=mx(p.td*(1+p.eTd/100),.05),Thdm=mx(p.thd+p.eThd,0);
+const thff=mx(Thdm-Thpm,0),dyn=p.dtype!==undefined&&p.fft==='dyn',rr=Tpm/Tdm;
+const D=n=>new Dly(Math.round(n/dt));
+const dM=D(p.mD),dF=D(thff),dP=D(p.thp),dD=D(p.thd);
+const aP=1-Math.exp(-dt/p.tp),aD=1-Math.exp(-dt/p.td),aM=1-Math.exp(-dt/Tdm);
+let xp=0,xd=0,w=0,I=0,y=0,iae=0,pk=0;const Y=new Float32Array(N),U=new Float32Array(N),Dd=new Float32Array(N);
+const N1=rng(11),N2=rng(23);
+for(let k=0;k<N;k++){const t=k*dt,d=dist(t,p,rs),dt_=d+(t>=p.T/2?p.Au:0);
+const dm=dM.push(d)+p.nFF*gauss(N1);let m=Kdm/Kpm*dm,o=m;
+if(dyn){w+=aM*(m-w);o=rr*m+(1-rr)*w;o=dF.push(o)}
+const uff=ff?-o*(1+p.gE/100):0;
+const e=-(y+p.nFB*gauss(N2));const ufb=fb?p.Kc*e+I:0;
+const un=uff+ufb,u=Math.max(-p.um,Math.min(p.um,un));
+if(fb)I+=p.Kc/p.Ti*e*dt+(u-un)/(p.Ti*.5)*dt;
+xp+=aP*(p.Kp*dP.push(u)-xp);xd+=aD*(p.Kd*dD.push(dt_)-xd);y=xp+xd;
+Y[k]=y;U[k]=u;Dd[k]=d;iae+=Math.abs(y)*dt;pk=Math.max(pk,Math.abs(y))}
+return{Y,U,Dd,iae,pk,dt,N,thff,Thdm,Thpm}}
+// ---------- plotting ----------
+const CV=[['ol','Open loop (no control)','#8a8a85',[5,4],0,0],['ff','FF only','#e8590c',[],1,0],['fb','FB only (PI)','#1c7ed6',[],0,1],['fbff','FB + FF','#2f9e44',[],1,1]];
+const vis={ol:true,ff:true,fb:true,fbff:true};
+$('leg').innerHTML=CV.map(c=>`<label><input type="checkbox" checked data-k="${c[0]}"><span class="sw" style="background:${c[2]}"></span>${c[1]}</label>`).join('');
+$('leg').onchange=e=>{vis[e.target.dataset.k]=e.target.checked;draw()};
+let R={};
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function panel(c,x,y,w,h,title,series,T,ymin,ymax){
+c.fillStyle=css('--card');c.strokeStyle=css('--grid');c.lineWidth=1;c.font='11px system-ui';
+c.beginPath();for(let i=0;i<=4;i++){const yy=y+h*i/4;c.moveTo(x,yy);c.lineTo(x+w,yy)}c.stroke();
+c.fillStyle=css('--mut');c.textAlign='right';
+for(let i=0;i<=4;i++){c.fillText((ymax-(ymax-ymin)*i/4).toFixed(2),x-4,y+h*i/4+4)}
+c.textAlign='left';c.fillText(title,x+4,y+12);
+if(ymin<0&&ymax>0){const z=y+h*ymax/(ymax-ymin);c.strokeStyle=css('--mut');c.beginPath();c.moveTo(x,z);c.lineTo(x+w,z);c.stroke()}
+c.save();c.beginPath();c.rect(x,y,w,h);c.clip();
+series.forEach(s=>{c.strokeStyle=s.col;c.lineWidth=s.lw||1.8;c.setLineDash(s.dash||[]);c.beginPath();
+const n=s.a.length,st=Math.max(1,Math.floor(n/w));
+for(let k=0;k<n;k+=st){const px=x+w*k/(n-1),py=y+h*(ymax-s.a[k])/(ymax-ymin);k?c.lineTo(px,py):c.moveTo(px,py)}c.stroke()});c.restore();c.setLineDash([])}
+function rngOf(arrs,minw){let a=1e9,b=-1e9;arrs.forEach(r=>{for(let i=0;i<r.length;i+=3){if(r[i]<a)a=r[i];if(r[i]>b)b=r[i]}});
+a=Math.min(a,0);b=Math.max(b,0);const m=Math.max(b-a,minw)*.1;return[a-m,b+m]}
+function draw(){if(!R.ol)return;const cv=$('cv'),dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,W,H);
+const x=44,w=W-x-10,T=S.T,vs=CV.filter(v=>vis[v[0]]);
+const yA=[R.ol.Y,...vs.map(v=>R[v[0]].Y)],uA=[...vs.map(v=>R[v[0]].U)];
+const h1=70,h2=250,h3=H-h1-h2-70;
+const[dl,dh]=rngOf([R.ol.Dd],.5);panel(c,x,6,w,h1,'disturbance d(t)',[{a:R.ol.Dd,col:css('--mut')}],T,dl,dh);
+if(S.Au){}
+const[y0,y1]=rngOf(yA.slice(vis.ol?0:1),.3);
+panel(c,x,h1+22,w,h2,'output y(t)  (deviation from setpoint 0)',vs.map(v=>({a:R[v[0]].Y,col:v[2],dash:v[3]})),T,y0,y1);
+const[u0,u1]=rngOf(uA.length?uA:[R.ol.U],.5);
+panel(c,x,h1+h2+38,w,h3,'control action u(t)',vs.filter(v=>v[0]!=='ol').map(v=>({a:R[v[0]].U,col:v[2],dash:v[3]})),T,u0,u1);
+c.fillStyle=css('--mut');c.textAlign='center';[0,.25,.5,.75,1].forEach(f=>c.fillText((T*f).toFixed(0)+' s',x+w*f,H-4));
+}
+function run(){
+for(const k in ins){outs[k].textContent=(+S[k]).toFixed(k.startsWith('n')?2:(ins[k].step<1?1:0))}
+CV.forEach(c=>R[c[0]]=sim(S,c[4],c[5]));
+const p=PR[preset]||['', {},'Custom configuration','You changed parameters manually. Compare the four curves and the table below.','Pick a scenario above to get a guided case.'];
+$('desc').innerHTML=`<b>${p[2]}</b>${p[3]}<div class="ob"><b style="display:inline">What to observe: </b>${p[4]}</div>`;
+document.querySelectorAll('button.p').forEach((b,i)=>b.classList.toggle('on',i==preset));
+const base=R.ol.iae;
+$('met').innerHTML='<tr><th>Strategy</th><th>IAE</th><th>Max |y|</th><th>IAE vs open loop</th></tr>'+CV.map(c=>{const r=R[c[0]];
+return`<tr><td><span class="sw" style="background:${c[2]}"></span> ${c[1]}</td><td>${r.iae.toFixed(2)}</td><td>${r.pk.toFixed(3)}</td><td>${base>1e-9?(100*(1-r.iae/base)).toFixed(0)+'%':'—'}</td></tr>`}).join('');
+// diagnostics
+const dg=[],r=R.ff;
+if(S.thd<S.thp)dg.push(['w',`Non-causal physics: the disturbance reaches the output (θd=${S.thd}s) before the control can (θp=${S.thp}s). Perfect compensation is impossible, with a minimum ${(S.thp-S.thd).toFixed(1)} s uncompensated window.`]);
+else if(S.thd-S.mD<S.thp)dg.push(['w',`The measurement delay (${S.mD}s) uses up the available lead time (θd−θp=${(S.thd-S.thp).toFixed(1)}s). FF acts late.`]);
+else dg.push(['',`Causal: FF has ${(S.thd-S.thp-S.mD).toFixed(1)} s of spare lead time.`]);
+if(r.Thdm<r.Thpm)dg.push(['w','The model itself is non-causal (θd,model<θp,model); the FF delay is clipped to 0.']);
+const ratio=S.tp/S.td;
+if(S.fft==='dyn'&&ratio>3)dg.push(['w',`Plant is ${ratio.toFixed(1)}× slower than the disturbance: the lead-lag lead is large. Expect a big control spike, noise amplification and saturation risk.`]);
+if(ratio<.4)dg.push(['',`Plant is faster than the disturbance (τp/τd=${ratio.toFixed(2)}): static FF is nearly as good as dynamic FF.`]);
+if(S.eThd!==0||S.eThp!==0)dg.push(['w','Delay model errors produce a wrong-timed correction, which is the most harmful kind of mismatch.']);
+const mis=[S.eKp,S.eKd,S.eTp,S.eTd].some(v=>v!==0);
+if(!mis&&!S.eThp&&!S.eThd&&!S.nFF&&!S.mD&&!S.gE&&S.um>=10&&S.thd>=S.thp&&!S.Au&&S.fft==='dyn')dg.push(['','Ideal FF: expect near-perfect cancellation.']);
+if(S.fft==='sta')dg.push(['','Static FF: gain Kd/Kp only, no lead-lag or delay. It is effective only for slow disturbances or similar dynamics.']);
+if(S.Au)dg.push(['w','An unmeasured disturbance is present: FF alone cannot see it, so only FB can remove it.']);
+if(Math.max(...Array.from(R.ff.U,Math.abs))>=S.um-1e-3)dg.push(['w','The actuator hits its limit: saturation is degrading the compensation.']);
+$('dg').innerHTML=dg.map(d=>`<li class="${d[0]}">${d[1]}</li>`).join('');
+draw()}
+addEventListener('resize',draw);sync();run();
+</script><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body></html>

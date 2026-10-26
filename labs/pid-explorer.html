@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PID Control Explorer</title>
+<style>
+:root{
+  --bg:#f4f5f7;--panel:#ffffff;--ink:#1c222a;--muted:#5d6773;--line:#dde2e8;--grid:#edf0f3;--accent:#2563eb;--accent-soft:#e7efff;
+  --c-r:#6b7280;--c-y:#2563eb;--c-ym:#a9c1f3;--c-u:#e5701a;--c-v:#9a5a12;--c-p:#16a34a;--c-i:#9333ea;--c-d:#dc2626;--c-ghost:#b4b9c1;--c-lim:#dc2626;--c-dist:#0d9488;
+  --good:#15803d;--warn:#b45309;--bad:#b91c1c;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111418;--panel:#1a1e24;--ink:#e5e8ec;--muted:#98a1ac;--line:#2b3139;--grid:#232830;--accent:#60a5fa;--accent-soft:#1d2a3d;
+  --c-r:#a1a1aa;--c-y:#60a5fa;--c-ym:#2c4a77;--c-u:#fb923c;--c-v:#fcd34d;--c-p:#4ade80;--c-i:#c084fc;--c-d:#f87171;--c-ghost:#5a606a;--c-lim:#f87171;--c-dist:#2dd4bf;
+  --good:#4ade80;--warn:#fbbf24;--bad:#f87171;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:330px minmax(0,1fr) 310px;height:100vh;gap:10px;padding:10px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto;min-height:0}
+.side{padding:10px 12px}
+h1{font-size:16px;margin:2px 0 8px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px;border-top:1px solid var(--line);padding-top:10px}
+h2:first-of-type{border-top:0;padding-top:0}
+.row{display:grid;grid-template-columns:78px 1fr 62px 20px;align-items:center;gap:6px;margin:4px 0}
+.row label{white-space:nowrap}
+.row.disabled{opacity:.4;pointer-events:none}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=number]{width:62px;padding:2px 4px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+select{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);width:100%}
+.unit{color:var(--muted);font-size:11px}
+.sel{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:6px;margin:5px 0}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;margin:5px 0}
+.chk label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.tf{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;margin:6px 0;color:var(--ink)}
+button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btns{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+.toggles{display:flex;gap:6px;margin:6px 0}
+.toggles label{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:4px 0;cursor:pointer;font-weight:600;user-select:none}
+.toggles input{display:none}
+.toggles label.on-P{background:color-mix(in srgb,var(--c-p) 18%,transparent);border-color:var(--c-p)}
+.toggles label.on-I{background:color-mix(in srgb,var(--c-i) 18%,transparent);border-color:var(--c-i)}
+.toggles label.on-D{background:color-mix(in srgb,var(--c-d) 18%,transparent);border-color:var(--c-d)}
+.main{display:flex;flex-direction:column;overflow:hidden;padding:8px 10px}
+.plotwrap{position:relative;min-height:0}
+.plotwrap.top{flex:1.15}
+.plotwrap.bot{flex:1}
+canvas{display:block;width:100%;height:100%}
+.ptitle{font-size:12px;font-weight:600;color:var(--muted);margin:2px 0 0 4px;height:16px}
+.metrics{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:6px;flex:none}
+.tile{border:1px solid var(--line);border-radius:7px;padding:4px 7px;min-width:0}
+.tile .k{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.notes{flex:none;height:54px;overflow:auto;margin-top:6px;font-size:12.5px;border-left:3px solid var(--accent);padding:2px 8px;background:var(--accent-soft);border-radius:0 6px 6px 0}
+.notes div{margin:1px 0}
+.info{padding:10px 12px}
+.card{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:7px;padding:6px 9px;margin:7px 0;transition:opacity .15s}
+.card.P{border-left-color:var(--c-p)}.card.I{border-left-color:var(--c-i)}.card.D{border-left-color:var(--c-d)}.card.F{border-left-color:var(--muted)}.card.W{border-left-color:var(--c-u)}
+.card.off{opacity:.45}
+.card b{display:block;margin-bottom:2px}
+.card ul{margin:2px 0 0 16px;padding:0}
+.plus{color:var(--good)}.minus{color:var(--bad)}
+.scen{display:block;width:100%;text-align:left;margin:4px 0;padding:5px 8px}
+.scen small{display:block;color:var(--muted)}
+#scenText{font-size:12.5px;background:var(--accent-soft);border-radius:6px;padding:6px 8px;margin:6px 0;min-height:20px}
+@media (max-width:1150px){
+  .app{grid-template-columns:300px minmax(0,1fr);grid-template-rows:100vh auto;height:auto}
+  .info{grid-column:1/3}
+  .side{max-height:calc(100vh - 20px)}
+  .main{height:calc(100vh - 20px)}
+}
+@media (max-width:720px){
+  .app{grid-template-columns:1fr;padding:8px}
+  .info{grid-column:auto}.side{max-height:none}
+  .main{height:90vh}
+  .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ CONTROLS ============ -->
+  <div class="col side" id="side">
+    <h1>PID Control Explorer</h1>
+
+    <h2>Process</h2>
+    <div class="sel"><label for="ptype">Type</label>
+      <select id="ptype">
+        <option value="1">1st order</option>
+        <option value="2" selected>2nd order</option>
+        <option value="3">3rd order</option>
+        <option value="d">1st order + dead time</option>
+      </select></div>
+    <div id="procSliders"></div>
+    <div class="tf" id="tfProc"></div>
+
+    <h2>Controller</h2>
+    <div class="toggles">
+      <label id="lbP"><input type="checkbox" id="enP" checked>P</label>
+      <label id="lbI"><input type="checkbox" id="enI" checked>I</label>
+      <label id="lbD"><input type="checkbox" id="enD" checked>D</label>
+    </div>
+    <div id="ctrlSliders"></div>
+    <div class="sel"><label for="dmode">D acts on</label>
+      <select id="dmode"><option value="meas" selected>measurement −y</option><option value="err">error r−y</option></select></div>
+    <div class="tf" id="tfCtrl"></div>
+
+    <h2>Signals</h2>
+    <div id="sigSliders"></div>
+    <div class="btns"><button id="newNoise">New noise realisation</button></div>
+
+    <h2>Actuator &amp; anti-windup</h2>
+    <div class="chk"><label><input type="checkbox" id="lim"> Actuator limits</label></div>
+    <div id="actSliders"></div>
+    <div class="sel"><label for="aw">Anti-windup</label>
+      <select id="aw"><option value="none">none</option><option value="clamp">conditional integration (clamping)</option><option value="bc" selected>back-calculation</option></select></div>
+    <div id="awSliders"></div>
+
+    <h2>Display</h2>
+    <div class="chk">
+      <label><input type="checkbox" id="showPID" checked> P, I, D parts</label>
+      <label><input type="checkbox" id="showV" checked> unsaturated v</label>
+      <label><input type="checkbox" id="showYm" checked> noisy y<sub>m</sub></label>
+      <label><input type="checkbox" id="lockAx"> lock axes</label>
+    </div>
+    <div class="btns">
+      <button id="hold" class="primary">Hold trace for comparison</button>
+      <button id="clearHold">Clear held</button>
+      <button id="reset">Reset all</button>
+    </div>
+  </div>
+
+  <!-- ============ PLOTS ============ -->
+  <div class="col main">
+    <div class="ptitle">Reference r, process output y</div>
+    <div class="plotwrap top"><canvas id="cvY"></canvas></div>
+    <div class="ptitle">Controller output u</div>
+    <div class="plotwrap bot"><canvas id="cvU"></canvas></div>
+    <div class="metrics" id="metrics"></div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <!-- ============ EXPLANATIONS ============ -->
+  <div class="col info">
+    <h2>Guided experiments</h2>
+    <div id="scenList"></div>
+    <div id="scenText">Pick an experiment, then move the sliders to see what changes.</div>
+
+    <h2>The control actions</h2>
+    <div class="card P" id="cardP"><b>P — proportional: K<sub>p</sub>·e</b>
+      <ul><li class="plus">Immediate reaction to the current error; speeds up the response.</li>
+      <li class="minus">Alone it leaves a steady-state offset (for processes without integration).</li>
+      <li class="minus">Too high: overshoot, oscillation, instability; amplifies noise.</li></ul></div>
+    <div class="card I" id="cardI"><b>I — integral: K<sub>i</sub>·∫e dt</b>
+      <ul><li class="plus">Removes steady-state error for steps in reference and load disturbance.</li>
+      <li class="minus">Adds phase lag: slower, more overshoot, can destabilise.</li>
+      <li class="minus">Winds up when the actuator saturates → needs anti-windup.</li></ul></div>
+    <div class="card D" id="cardD"><b>D — derivative: K<sub>d</sub>·de/dt</b>
+      <ul><li class="plus">Predicts the error trend, adds damping, permits higher K<sub>p</sub>, K<sub>i</sub>.</li>
+      <li class="minus">Strongly amplifies high-frequency measurement noise.</li>
+      <li class="minus">Acting on the error it gives a “derivative kick” at reference steps.</li>
+      <li class="minus">Of little help with long dead time.</li></ul></div>
+    <div class="card F" id="cardF"><b>Filter 1/(T<sub>f</sub>s+1)</b>
+      <ul><li class="plus">In series with the whole controller: attenuates noise in u and makes D realisable.</li>
+      <li class="minus">Too large T<sub>f</sub> adds lag in the loop → less damping, eventually instability.</li></ul></div>
+    <div class="card W" id="cardW"><b>Actuator limits &amp; anti-windup</b>
+      <ul><li>Real actuators saturate: u = sat(v). While saturated the loop is effectively open.</li>
+      <li><i>Clamping</i>: stop integrating when saturated and the error would push further into the limit.</li>
+      <li><i>Back-calculation</i>: feed (u−v)/T<sub>t</sub> into the integrator so it tracks the limit; smaller T<sub>t</sub> = faster tracking.</li></ul></div>
+  </div>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const SL={};
+let renderPending=false;
+function schedule(){ if(!renderPending){renderPending=true;requestAnimationFrame(()=>{renderPending=false;render();});} }
+
+function slider(cont,id,label,min,max,step,val,unit=''){
+  const row=document.createElement('div');row.className='row';
+  row.innerHTML=`<label for="${id}">${label}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"><input type="number" id="${id}_n" step="${step}" value="${val}"><span class="unit">${unit}</span>`;
+  $(cont).appendChild(row);
+  const r=row.querySelector('input[type=range]'),n=row.querySelector('input[type=number]');
+  r.addEventListener('input',()=>{n.value=r.value;schedule();});
+  n.addEventListener('input',()=>{if(n.value!==''&&isFinite(+n.value)){r.value=n.value;schedule();}});
+  SL[id]={r,n,row};
+}
+const V=id=>{const s=SL[id];const x=parseFloat(s.n.value);return isFinite(x)?x:+s.r.value;};
+const setV=(id,v)=>{SL[id].r.value=v;SL[id].n.value=v;};
+
+slider('procSliders','K','Gain K',0.1,5,0.05,1);
+slider('procSliders','T','Time const T',0.1,10,0.05,1,'s');
+slider('procSliders','L','Dead time L',0,5,0.05,1,'s');
+slider('ctrlSliders','Kp','K<sub>p</sub>',0,20,0.05,2);
+slider('ctrlSliders','Ki','K<sub>i</sub>',0,10,0.01,1,'1/s');
+slider('ctrlSliders','Kd','K<sub>d</sub>',0,10,0.01,0.5,'s');
+slider('ctrlSliders','Tf','Filter T<sub>f</sub>',0,2,0.005,0.05,'s');
+slider('sigSliders','ra','Ref. step',-2,2,0.05,1);
+slider('sigSliders','da','Load dist.',-1,1,0.01,0.3);
+slider('sigSliders','dtp','Dist. at',0,100,1,50,'%');
+slider('sigSliders','noise','Noise σ',0,0.2,0.001,0);
+slider('sigSliders','tsim','Sim. time',5,200,1,30,'s');
+slider('actSliders','umin','u<sub>min</sub>',-5,0,0.05,-1);
+slider('actSliders','umax','u<sub>max</sub>',0,10,0.05,2);
+slider('awSliders','Tt','Tracking T<sub>t</sub>',0.01,10,0.01,1,'s');
+
+const DEFAULTS={ptype:'2',K:1,T:1,L:1,Kp:2,Ki:1,Kd:0.5,Tf:0.05,enP:true,enI:true,enD:true,dmode:'meas',
+  ra:1,da:0.3,dtp:50,noise:0,tsim:30,lim:false,umin:-1,umax:2,aw:'bc',Tt:1};
+const SELECTS=['ptype','dmode','aw'], CHECKS=['enP','enI','enD','lim'];
+function apply(cfg){
+  const c=Object.assign({},DEFAULTS,cfg);
+  for(const k in c){ if(SL[k]) setV(k,c[k]); else if(SELECTS.includes(k)) $(k).value=c[k]; else if(CHECKS.includes(k)) $(k).checked=c[k]; }
+  schedule();
+}
+document.querySelectorAll('select, .side input[type=checkbox]').forEach(el=>el.addEventListener('change',schedule));
+
+/* ---------- seeded Gaussian noise ---------- */
+let seed=12345, noiseBuf=null, noiseSeed=null;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function getNoise(n){
+  if(noiseBuf&&noiseBuf.length===n&&noiseSeed===seed) return noiseBuf;
+  const rnd=mulberry32(seed),b=new Float64Array(n);
+  for(let i=0;i<n;i+=2){const u1=Math.max(rnd(),1e-12),u2=rnd(),m=Math.sqrt(-2*Math.log(u1));b[i]=m*Math.cos(2*Math.PI*u2);if(i+1<n)b[i+1]=m*Math.sin(2*Math.PI*u2);}
+  noiseBuf=b;noiseSeed=seed;return b;
+}
+$('newNoise').onclick=()=>{seed=(seed*1103515245+12345)>>>0;schedule();};
+
+/* ---------- parameters ---------- */
+function params(){
+  const p={ptype:$('ptype').value};
+  for(const k in SL) p[k]=V(k);
+  p.enP=$('enP').checked;p.enI=$('enI').checked;p.enD=$('enD').checked;
+  p.dmode=$('dmode').value;p.lim=$('lim').checked;p.aw=$('aw').value;
+  p.T=Math.max(p.T,1e-3);p.Tf=Math.max(p.Tf,0);p.Tt=Math.max(p.Tt,1e-3);p.tsim=Math.max(p.tsim,1);
+  if(p.umin>p.umax){const t=p.umin;p.umin=p.umax;p.umax=t;}
+  p.tr=0.05*p.tsim>1?1:0.05*p.tsim;            // reference step time
+  p.td=p.dtp/100*p.tsim;                        // disturbance time
+  p.kp=p.enP?p.Kp:0;p.ki=p.enI?p.Ki:0;p.kd=p.enD?p.Kd:0;
+  return p;
+}
+
+/* ---------- simulation ---------- */
+const N=6000;
+function simulate(p){
+  const dt=p.tsim/N, n=p.ptype==='d'?1:+p.ptype;
+  const x=new Float64Array(n), a=Math.exp(-dt/p.T);
+  const nd=p.ptype==='d'?Math.round(p.L/dt):0, buf=new Float64Array(Math.max(nd,1));let bi=0;
+  const af=p.Tf>0?Math.exp(-dt/p.Tf):0;
+  const noise=getNoise(N+1);
+  const S={t:new Float64Array(N+1),r:new Float64Array(N+1),y:new Float64Array(N+1),ym:new Float64Array(N+1),
+    u:new Float64Array(N+1),v:new Float64Array(N+1),P:new Float64Array(N+1),I:new Float64Array(N+1),D:new Float64Array(N+1),sat:new Uint8Array(N+1),dt};
+  let rf=0,yf=0,Ii=0;
+  const BIG=1e6;
+  for(let k=0;k<=N;k++){
+    const t=k*dt, r=t>=p.tr?p.ra:0, y=p.K*x[n-1], ym=y+p.noise*noise[k];
+    // series filter 1/(Tf s+1) applied to r and y_m (equivalent to filtering all controller terms)
+    let rfn,yfn;
+    if(k===0){rfn=r;yfn=ym;}
+    else if(p.Tf>0){rfn=af*rf+(1-af)*r;yfn=af*yf+(1-af)*ym;}
+    else{rfn=r;yfn=ym;}
+    const drf=k===0?0:(rfn-rf)/dt, dyf=k===0?0:(yfn-yf)/dt;
+    rf=rfn;yf=yfn;
+    const e=rf-yf;
+    const P=p.kp*e;
+    const D=p.kd*(p.dmode==='err'?(drf-dyf):-dyf);
+    if(p.ki===0) Ii=0;
+    let v=P+Ii+D; if(!isFinite(v)) v=0;
+    v=Math.max(-BIG,Math.min(BIG,v));
+    let u=v, sat=0;
+    if(p.lim){ if(v>p.umax){u=p.umax;sat=1;} else if(v<p.umin){u=p.umin;sat=1;} }
+    S.t[k]=t;S.r[k]=r;S.y[k]=y;S.ym[k]=ym;S.u[k]=u;S.v[k]=v;S.P[k]=P;S.I[k]=Ii;S.D[k]=D;S.sat[k]=sat;
+    // integrator update (with anti-windup)
+    if(p.ki!==0){
+      if(p.lim&&p.aw==='clamp'){ if(!(sat&&((v>p.umax&&e>0)||(v<p.umin&&e<0)))) Ii+=p.ki*e*dt; }
+      else if(p.lim&&p.aw==='bc'){ Ii+=(p.ki*e+(u-v)/p.Tt)*dt; }
+      else Ii+=p.ki*e*dt;
+      Ii=Math.max(-BIG,Math.min(BIG,Ii));
+    }
+    // process: input = u + load disturbance, optional dead time, cascade of first-order lags
+    let up=u+(t>=p.td&&p.da!==0?p.da:0);
+    if(nd>0){const o=buf[bi];buf[bi]=up;bi=(bi+1)%nd;up=o;}
+    let inp=up;
+    for(let i=0;i<n;i++){x[i]=a*x[i]+(1-a)*inp; x[i]=Math.max(-BIG,Math.min(BIG,x[i])); inp=x[i];}
+  }
+  return S;
+}
+
+/* ---------- metrics ---------- */
+function metrics(S,p){
+  const dt=S.dt, ra=p.ra;
+  const i0=Math.ceil(p.tr/dt), i1=(p.da!==0&&p.td>p.tr)?Math.min(N,Math.floor(p.td/dt)):N;
+  const m={};
+  let ymax=-Infinity,ymin=Infinity;
+  for(let k=i0;k<=i1;k++){ymax=Math.max(ymax,S.y[k]);ymin=Math.min(ymin,S.y[k]);}
+  m.os=ra!==0?Math.max(0,(ra>0?ymax-ra:ra-ymin)/Math.abs(ra)*100):NaN;
+  let t10=NaN,t90=NaN;
+  if(ra!==0) for(let k=i0;k<=i1;k++){const f=S.y[k]/ra;if(isNaN(t10)&&f>=0.1)t10=S.t[k];if(isNaN(t90)&&f>=0.9){t90=S.t[k];break;}}
+  m.tr=t90-t10;
+  // settling (2 % band)
+  let last=-1; const band=0.02*Math.abs(ra);
+  if(ra!==0){for(let k=i0;k<=i1;k++) if(Math.abs(S.y[k]-ra)>band) last=k;}
+  m.ts=ra===0?NaN:(last===i1?Infinity:(last<0?0:S.t[last+1]-p.tr));
+  const avg=(a,b)=>{let s=0,c=0;for(let k=Math.max(0,a);k<=b;k++){s+=S.y[k];c++;}return s/c;};
+  const w=Math.max(5,Math.floor((i1-i0)*0.05));
+  m.e1=ra-avg(i1-w,i1);
+  m.e2=ra-avg(N-Math.floor(N*0.03),N);
+  let iae=0,umax=0,tv=0,satT=0;
+  for(let k=0;k<=N;k++){iae+=Math.abs(S.r[k]-S.y[k])*dt;umax=Math.max(umax,Math.abs(S.u[k]));if(k)tv+=Math.abs(S.u[k]-S.u[k-1]);satT+=S.sat[k]*dt;}
+  m.iae=iae;m.umax=umax;m.tv=tv;m.satT=satT;
+  // divergence check: amplitude of last 20 % vs previous
+  let a1=0,a2=0;const q=Math.floor(N*0.2);
+  for(let k=N-2*q;k<N-q;k++)a1=Math.max(a1,Math.abs(S.y[k]-ra));
+  for(let k=N-q;k<=N;k++)a2=Math.max(a2,Math.abs(S.y[k]-ra));
+  m.unstable=!isFinite(ymax)||Math.abs(ymax)>1e3||(a2>a1*1.05&&a2>0.2*Math.max(Math.abs(ra),0.1));
+  m.osc=!m.unstable&&a2>0.05*Math.max(Math.abs(ra),0.1)&&a2>0.6*a1;
+  return m;
+}
+const f=(x,d=2,u='')=>!isFinite(x)?(x===Infinity?'&gt; window':'—'):x.toFixed(d)+u;
+
+/* ---------- plotting ---------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function ticks(lo,hi,n){const span=hi-lo||1,s0=span/n,mag=10**Math.floor(Math.log10(s0)),fr=s0/mag,st=(fr<1.5?1:fr<3?2:fr<7?5:10)*mag;
+  const t=[];for(let v=Math.ceil(lo/st)*st;v<=hi+st*1e-9;v+=st)t.push(Math.abs(v)<st*1e-9?0:v);return{t,st};}
+function fmtTick(v,st){const d=Math.max(0,-Math.floor(Math.log10(st)+1e-9));return Math.abs(v)>=1e4?v.toExponential(1):v.toFixed(Math.min(d,4));}
+function autoRange(list,inc=[]){let lo=Infinity,hi=-Infinity;
+  for(const a of list){for(let k=0;k<a.length;k++){const v=a[k];if(isFinite(v)){if(v<lo)lo=v;if(v>hi)hi=v;}}}
+  for(const v of inc){lo=Math.min(lo,v);hi=Math.max(hi,v);}
+  if(!isFinite(lo)){lo=-1;hi=1;}
+  if(hi-lo<1e-6){lo-=0.5;hi+=0.5;}
+  const pad=(hi-lo)*0.06;return[lo-pad,hi+pad];}
+function drawPlot(cv,o){
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const L=58,R=12,T=8,B=o.xlabel?32:22,pw=W-L-R,ph=H-T-B;if(pw<20||ph<20)return;
+  const[x0,x1]=o.xr,[y0,y1]=o.yr;
+  const X=v=>L+(v-x0)/(x1-x0)*pw, Y=v=>T+(1-(v-y0)/(y1-y0))*ph;
+  c.font='11px system-ui,sans-serif';c.lineWidth=1;
+  const xt=ticks(x0,x1,8),yt=ticks(y0,y1,6);
+  c.strokeStyle=css('--grid');c.beginPath();
+  for(const v of xt.t){c.moveTo(Math.round(X(v))+.5,T);c.lineTo(Math.round(X(v))+.5,T+ph);}
+  for(const v of yt.t){c.moveTo(L,Math.round(Y(v))+.5);c.lineTo(L+pw,Math.round(Y(v))+.5);}
+  c.stroke();
+  c.fillStyle=css('--muted');c.textAlign='center';c.textBaseline='top';
+  for(const v of xt.t)c.fillText(fmtTick(v,xt.st),X(v),T+ph+4);
+  c.textAlign='right';c.textBaseline='middle';
+  for(const v of yt.t)c.fillText(fmtTick(v,yt.st),L-6,Y(v));
+  if(o.xlabel){c.textAlign='center';c.textBaseline='bottom';c.fillText(o.xlabel,L+pw/2,H-1);}
+  c.strokeStyle=css('--line');c.strokeRect(L+.5,T+.5,pw,ph);
+  c.save();c.beginPath();c.rect(L,T,pw,ph);c.clip();
+  if(y0<0&&y1>0){c.strokeStyle=css('--muted');c.globalAlpha=.35;c.beginPath();c.moveTo(L,Y(0));c.lineTo(L+pw,Y(0));c.stroke();c.globalAlpha=1;}
+  for(const h of o.hlines||[]){c.strokeStyle=h.color;c.setLineDash([6,4]);c.lineWidth=1.2;c.beginPath();c.moveTo(L,Y(h.v));c.lineTo(L+pw,Y(h.v));c.stroke();c.setLineDash([]);}
+  for(const vl of o.vlines||[]){c.strokeStyle=vl.color;c.setLineDash([2,3]);c.lineWidth=1;c.beginPath();c.moveTo(X(vl.v),T);c.lineTo(X(vl.v),T+ph);c.stroke();c.setLineDash([]);
+    c.fillStyle=vl.color;c.textAlign='left';c.textBaseline='bottom';c.fillText(vl.label,X(vl.v)+3,T+ph-3);}
+  const clampY=v=>Math.max(-1e5,Math.min(1e5,Y(v)));
+  for(const s of o.series){
+    c.strokeStyle=s.color;c.lineWidth=s.w||1.6;c.globalAlpha=s.alpha??1;c.setLineDash(s.dash||[]);c.lineJoin='round';
+    c.beginPath();const t=s.t||o.t,d=s.d;
+    for(let k=0;k<d.length;k++){const px=X(t[k]),py=clampY(d[k]);k?c.lineTo(px,py):c.moveTo(px,py);}
+    c.stroke();c.globalAlpha=1;c.setLineDash([]);
+  }
+  c.restore();
+  // legend
+  let lx=L+8;const ly=T+10;c.textAlign='left';c.textBaseline='middle';
+  const items=o.series.filter(s=>s.label);
+  c.font='11.5px system-ui,sans-serif';
+  const widths=items.map(s=>c.measureText(s.label).width+30),tot=widths.reduce((a,b)=>a+b,0);
+  c.fillStyle=css('--panel');c.globalAlpha=.85;c.fillRect(lx-4,ly-8,tot+4,16);c.globalAlpha=1;
+  items.forEach((s,i)=>{c.strokeStyle=s.color;c.lineWidth=2.2;c.setLineDash(s.dash||[]);c.globalAlpha=Math.max(s.alpha??1,.6);
+    c.beginPath();c.moveTo(lx,ly);c.lineTo(lx+18,ly);c.stroke();c.setLineDash([]);c.globalAlpha=1;
+    c.fillStyle=css('--ink');c.fillText(s.label,lx+22,ly);lx+=widths[i];});
+}
+
+/* ---------- held trace ---------- */
+let held=null, locked=null;
+$('hold').onclick=()=>{if(last)held={t:Float64Array.from(last.t),y:Float64Array.from(last.y),u:Float64Array.from(last.u)};schedule();};
+$('clearHold').onclick=()=>{held=null;schedule();};
+$('reset').onclick=()=>{held=null;seed=12345;$('scenText').textContent='Pick an experiment, then move the sliders to see what changes.';apply({});};
+$('lockAx').addEventListener('change',()=>{locked=null;});
+
+/* ---------- render ---------- */
+let last=null;
+function render(){
+  const p=params();
+  // UI state
+  SL.L.row.classList.toggle('disabled',p.ptype!=='d');
+  ['umin','umax'].forEach(k=>SL[k].row.classList.toggle('disabled',!p.lim));
+  $('aw').disabled=!p.lim; SL.Tt.row.classList.toggle('disabled',!(p.lim&&p.aw==='bc'));
+  SL.Kp.row.classList.toggle('disabled',!p.enP);SL.Ki.row.classList.toggle('disabled',!p.enI);SL.Kd.row.classList.toggle('disabled',!p.enD);
+  ['P','I','D'].forEach(k=>{$('lb'+k).className=p['en'+k]?'on-'+k:'';$('card'+k).classList.toggle('off',!p['en'+k]||p['k'+k.toLowerCase()]===0);});
+  $('cardW').classList.toggle('off',!p.lim);
+  const K=p.K.toFixed(2),T=p.T.toFixed(2);
+  $('tfProc').innerHTML='G(s) = '+(p.ptype==='1'?`${K} / (${T}s + 1)`:p.ptype==='2'?`${K} / (${T}s + 1)²`:p.ptype==='3'?`${K} / (${T}s + 1)³`:`${K}·e<sup>−${p.L.toFixed(2)}s</sup> / (${T}s + 1)`);
+  $('tfCtrl').innerHTML=`C(s) = (${p.kp.toFixed(2)} + ${p.ki.toFixed(2)}/s + ${p.kd.toFixed(2)}s) · 1/(${p.Tf.toFixed(3)}s + 1)`;
+
+  const S=simulate(p);last=S;const m=metrics(S,p);
+  const sY=[],sU=[];
+  if(held){sY.push({t:held.t,d:held.y,color:css('--c-ghost'),w:2,label:'y (held)'});sU.push({t:held.t,d:held.u,color:css('--c-ghost'),w:2,label:'u (held)'});}
+  if(p.noise>0&&$('showYm').checked)sY.push({d:S.ym,color:css('--c-ym'),w:1,label:'yₘ measured'});
+  sY.push({d:S.r,color:css('--c-r'),w:1.6,dash:[6,4],label:'r reference'});
+  sY.push({d:S.y,color:css('--c-y'),w:2.2,label:'y output'});
+  if($('showPID').checked){
+    if(p.kp)sU.push({d:S.P,color:css('--c-p'),w:1.1,alpha:.8,label:'P'});
+    if(p.ki)sU.push({d:S.I,color:css('--c-i'),w:1.1,alpha:.8,label:'I'});
+    if(p.kd)sU.push({d:S.D,color:css('--c-d'),w:1.1,alpha:.8,label:'D'});
+  }
+  if(p.lim&&$('showV').checked)sU.push({d:S.v,color:css('--c-v'),w:1.2,dash:[3,3],label:'v (before limit)'});
+  sU.push({d:S.u,color:css('--c-u'),w:2,label:'u to actuator'});
+
+  const xr=[0,p.tsim];
+  let yrY=autoRange(sY.map(s=>s.d),[0,p.ra]), yrU=autoRange([S.u].concat(sU.filter(s=>s.label!=='v (before limit)'||true).map(s=>s.d)),p.lim?[p.umin,p.umax,0]:[0]);
+  // keep y plot readable when unstable
+  if(m.unstable){const lim=Math.max(3*Math.abs(p.ra),1);yrY=[Math.max(yrY[0],-lim),Math.min(yrY[1],lim)];}
+  if($('lockAx').checked){ if(!locked||locked.tsim!==p.tsim) locked={y:yrY,u:yrU,tsim:p.tsim}; yrY=locked.y;yrU=locked.u; }
+  const vl=[];if(p.da!==0&&p.td<p.tsim)vl.push({v:p.td,color:css('--c-dist'),label:'load disturbance'});
+  drawPlot($('cvY'),{t:S.t,series:sY,xr,yr:yrY,vlines:vl});
+  drawPlot($('cvU'),{t:S.t,series:sU,xr,yr:yrU,vlines:vl,xlabel:'time [s]',hlines:p.lim?[{v:p.umax,color:css('--c-lim')},{v:p.umin,color:css('--c-lim')}]:[]});
+
+  const tiles=[['Overshoot',f(m.os,1,' %')],['Rise time 10–90 %',f(m.tr,2,' s')],['Settling 2 %',f(m.ts,2,' s')],
+    ['Offset before dist.',f(m.e1,3)],['Offset at end',f(m.e2,3)],['IAE ∫|r−y|',f(m.iae,2)],['max |u|',f(m.umax,2)],['Σ|Δu| (wear/noise)',f(m.tv,1)]];
+  $('metrics').innerHTML=tiles.map(([k,v])=>`<div class="tile"><div class="k" title="${k}">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  // live interpretation
+  const notes=[];
+  if(m.unstable)notes.push('<b style="color:var(--bad)">Closed loop is unstable</b> — reduce K<sub>p</sub>/K<sub>i</sub>, add D, or reduce T<sub>f</sub>/dead time.');
+  else if(m.osc)notes.push('<b style="color:var(--warn)">Poorly damped / sustained oscillation</b> — the loop is near its stability limit.');
+  if(!p.ki&&(p.kp||p.kd)&&!m.unstable){const ess=1/(1+p.K*p.kp);notes.push(`No integral action → steady-state offset remains (theory for a reference step: e∞ = r/(1+K·K<sub>p</sub>) = ${(p.ra*ess).toFixed(3)}). A load disturbance also leaves an offset.`);}
+  if(p.ki&&!m.unstable&&Math.abs(m.e2)<0.01*Math.max(Math.abs(p.ra),0.1))notes.push('Integral action has driven the offset to zero, also after the load disturbance.');
+  if(p.ki&&!p.kp&&!p.kd&&!m.unstable)notes.push('Pure I control: no offset, but the response is slow and easily oscillatory.');
+  if(isFinite(m.os)&&m.os>25&&!m.unstable)notes.push(`Overshoot ${m.os.toFixed(0)} % — lower K<sub>i</sub> or K<sub>p</sub>, or add derivative damping.`);
+  if(p.kd&&p.noise>0&&p.Tf<0.03)notes.push(`Derivative with little filtering amplifies noise σ=${p.noise}: actuator activity Σ|Δu| = ${m.tv.toFixed(0)}. Increase T<sub>f</sub>.`);
+  if(p.kd&&p.dmode==='err'&&!p.lim&&p.ra!==0)notes.push(`D on the error: derivative kick at the reference step, peak ≈ K<sub>d</sub>·r/T<sub>f</sub> ${p.Tf>0?'= '+(p.kd*Math.abs(p.ra)/p.Tf).toFixed(1):'→ ∞ (no filter)'}.`);
+  if(p.lim&&m.satT>0.05*p.tsim)notes.push(`Actuator saturated for ${m.satT.toFixed(1)} s. ${p.ki?(p.aw==='none'?'Without anti-windup the integrator keeps growing (see dashed v) → large overshoot.':'Anti-windup ('+(p.aw==='bc'?'back-calculation':'clamping')+') keeps the integrator near the limit.'):''}`);
+  if(p.ptype==='d'&&p.L>p.T)notes.push('Dead time longer than the time constant: gains must be reduced; D helps little.');
+  if(!p.kp&&!p.ki&&!p.kd)notes.push('All controller actions are off — open loop with u = 0, the output only reacts to the disturbance.');
+  if(!notes.length)notes.push('Well-behaved response. Try changing one gain at a time and watch the metrics.');
+  $('notes').innerHTML=notes.map(s=>'<div>• '+s+'</div>').join('');
+}
+
+/* ---------- guided experiments ---------- */
+const SCEN=[
+ ['P only: steady-state offset',{enI:false,enD:false,Kp:2},'With P only the output settles below the reference: offset = 1/(1+K·Kp) = 33 %. The load disturbance adds another offset. Increase Kp: offset shrinks but the response gets oscillatory.'],
+ ['High P: oscillation',{ptype:'3',enI:false,enD:false,Kp:6},'Third-order process with high Kp: fast but poorly damped. At Kp = 8 the loop oscillates permanently (ultimate gain), above it is unstable.'],
+ ['I only: slow, no offset',{enP:false,enD:false,Ki:0.3,tsim:60},'Integral action alone removes the offset, but is slow. Increase Ki to speed up — overshoot and oscillation grow quickly.'],
+ ['PI: zero offset',{enD:false,Kp:1.5,Ki:0.8},'P gives fast reaction, I removes offset for both reference and disturbance. Push Ki above ~2 and the response starts to oscillate.'],
+ ['PID: D adds damping',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0.1,da:0.3},'D damps the oscillation of an aggressive PI on a 3rd-order process. Toggle D off to compare (use “Hold trace”).'],
+ ['D amplifies noise',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0,noise:0.01},'Tiny sensor noise (σ = 0.01) without a filter makes u jump wildly because D differentiates it. Raise Tf to 0.1–0.3 and watch Σ|Δu| drop.'],
+ ['Filter Tf trade-off',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0.6,noise:0.01},'Large Tf removes noise from u but adds lag in the loop: less damping. Increase Tf further and the loop becomes unstable.'],
+ ['Derivative kick',{dmode:'err',Kd:1,Tf:0.02,da:0},'With D acting on the error, the reference step is differentiated: a huge spike Kd·r/Tf in u. Switch “D acts on” to measurement to remove it.'],
+ ['Windup (no anti-windup)',{lim:true,umin:-1,umax:1.4,aw:'none',Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'The actuator saturates at 1.4. The integrator keeps integrating (dashed v grows far above the limit), so the output overshoots heavily and recovers slowly.'],
+ ['Anti-windup: back-calculation',{lim:true,umin:-1,umax:1.4,aw:'bc',Tt:0.2,Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'Back-calculation feeds (u−v)/Tt to the integrator, keeping v near the limit — overshoot nearly disappears. Vary Tt.'],
+ ['Anti-windup: clamping',{lim:true,umin:-1,umax:1.4,aw:'clamp',Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'Conditional integration stops integrating while saturated in the direction of the error. Compare with back-calculation.'],
+ ['Dead time limits gains',{ptype:'d',T:1,L:2,Kp:1,Ki:0.6,enD:false,tsim:60},'With dead time L = 2T the same aggressiveness as before oscillates. Lower Ki to ~0.35 for a calm response; D brings little benefit here.'],
+];
+SCEN.forEach(([name,cfg,txt])=>{const b=document.createElement('button');b.className='scen';b.textContent=name;
+  b.onclick=()=>{apply(cfg);$('scenText').textContent=txt;};$('scenList').appendChild(b);});
+
+new ResizeObserver(schedule).observe(document.querySelector('.main'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
+apply({});
+})();
+</script>
+<script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script>
+</body>
+</html>
