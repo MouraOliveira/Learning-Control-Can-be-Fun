@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Learning Control Can be Fun: interactive labs for feedback control systems</title>
+<meta name="description" content="Interactive virtual laboratories for teaching and learning feedback control systems: step response, stability, steady-state error and PID control.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1b33'/%3E%3Cpath d='M5 25V22C9 22 9 8 14 8s4 13 8 13 3-9 5-9' fill='none' stroke='%23ffb23e' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#labs">Skip to the laboratories</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#top" aria-label="Learning Control Can be Fun, home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="currentColor"/><path d="M5 25V22C9 22 9 8 14 8s4 13 8 13 3-9 5-9" fill="none" stroke="var(--amber)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Learning Control Can be Fun</span>
+    </a>
+    <nav aria-label="Site">
+      <a href="#labs">Laboratories</a>
+      <a href="#about">About</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div class="hero-text">
+        <h1>Learning Control<br>Can be Fun</h1>
+        <p class="lede">Interactive virtual laboratories for feedback control systems. Move a slider, watch a system respond, and see why the theory says what it says.</p>
+        <div class="cta">
+          <a class="btn primary" href="#labs">Explore the labs</a>
+          <a class="btn" href="#about">About the project</a>
+        </div>
+        <p class="stat" id="count" aria-live="polite"></p>
+      </div>
+
+      <figure class="scope" aria-labelledby="scope-cap">
+        <div class="scope-head">
+          <span class="scope-title">Step response of a second-order system</span>
+          <span class="scope-badge" id="verdict"></span>
+        </div>
+        <svg id="plot" viewBox="0 0 560 300" role="img" aria-label="Step response curve that changes with the damping ratio">
+          <g id="grid"></g>
+          <rect id="band" x="44" width="506"></rect>
+          <line id="ref" x1="44" x2="550"></line>
+          <path id="curve" pathLength="1"></path>
+        </svg>
+        <div class="scope-ctl">
+          <label for="zeta">Damping ratio ζ <output id="zv"></output></label>
+          <input id="zeta" type="range" min="0.1" max="2" step="0.05" value="0.4">
+        </div>
+        <dl class="readout">
+          <div><dt>Overshoot</dt><dd id="os"></dd></div>
+          <div><dt>Settling time (±2 %)</dt><dd id="ts"></dd></div>
+        </dl>
+        <figcaption id="scope-cap">Natural frequency fixed at 1 rad/s. The shaded band is ±2 % of the final value. <a id="scope-link" href="#labs">Open the full lab</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="labs wrap" id="labs" aria-labelledby="labs-h">
+    <div class="labs-head">
+      <div>
+        <h2 id="labs-h">Laboratories</h2>
+        <p class="sub">Each lab runs entirely in your browser. Pick one, change the parameters, and watch what happens.</p>
+      </div>
+      <div class="tools">
+        <label class="search"><span class="sr">Search laboratories</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.5 10.5 3.5 3.5"/></svg>
+          <input id="q" type="search" placeholder="Search by topic or title" autocomplete="off">
+        </label>
+        <div class="chips" id="chips" role="group" aria-label="Filter by level"></div>
+      </div>
+    </div>
+    <p class="empty" id="empty" hidden>No laboratory matches. Try a different word or clear the level filter.</p>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="about wrap" id="about" aria-labelledby="about-h">
+    <h2 id="about-h">About this platform</h2>
+    <div class="about-grid">
+      <p>This platform brings together a growing collection of interactive, dynamic virtual laboratories that support the teaching and learning of feedback control systems. Each lab is a single self-contained page, so it can be used in class, assigned as homework, or opened offline.</p>
+      <p>The laboratories were developed with the assistance of generative artificial intelligence (GenAI) tools. These laboratories were done using Claude Sonnet 5.5, made by Anthropic, following simple prompts provided by Paulo Moura Oliveira. The PID Explorer Lab was done by Damir Vrancic. As with any teaching material, instructors and students are encouraged to check results against the theory and to report anything that looks wrong.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span>Learning Control Can be Fun by Paulo Moura Oliveira</span>
+    <span>Virtual laboratories for feedback control systems </span>
+  </div>
+</footer>
+
+<script src="assets/labs.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
