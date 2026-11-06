@@ -95,5 +95,19 @@ window.LABS = [
       'See why dead time and actuator limits restrict what feedforward can cancel',
       'Compare static and dynamic feedforward, with PI feedback cleaning up the rest'
     ]
+  },
+  {
+    id: 'cascade-control',
+    title: 'Cascade Control Lab',
+    file: 'labs/cascade-control.html',
+    level: 'Advanced',
+    preview: 'ff',
+    tags: ['Cascade', 'Disturbance rejection', 'Inner and outer loops'],
+    summary: 'Run cascade and single-loop control on the same process, disturbance and noise. Predict the outcome, run the scenario, then explain the difference.',
+    objectives: [
+      'See why an inner loop on the secondary variable rejects disturbances before they reach the output',
+      'Compare cascade and single-loop performance with the IAE ratio',
+      'Test the limits: slow or delayed inner loop, noise, saturation and model-gain errors'
+    ]
   }
 ];
