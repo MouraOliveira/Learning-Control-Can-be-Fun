@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cascade Control Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{--bg:#eef2f5;--card:#fff;--fg:#14212b;--mut:#5b6b78;--line:#d5dde3;--c:#0a6fb8;--s:#d9731a;--ok:#1b7f4b;--bad:#b3261e;--hi:#e7f1f9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161c;--card:#18222b;--fg:#e4ebf0;--mut:#93a4b1;--line:#2c3a46;--c:#4aa8ee;--s:#f0953f;--ok:#4cc58a;--bad:#ff7b72;--hi:#1d3042;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f161c;--card:#18222b;--fg:#e4ebf0;--mut:#93a4b1;--line:#2c3a46;--c:#4aa8ee;--s:#f0953f;--ok:#4cc58a;--bad:#ff7b72;--hi:#1d3042;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 'IBM Plex Sans',system-ui,Segoe UI,Arial,sans-serif}
+header{padding:14px 18px 6px;display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between}
+h1{font-size:21px;margin:0;font-weight:600}header p{margin:2px 0 0;color:var(--mut);max-width:70ch}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;padding:8px 18px 24px}
+@media(max-width:980px){main{grid-template-columns:1fr;padding:8px 10px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:12px}
+button,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:4px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--c)}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--c);outline-offset:1px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}.tabs button.on{background:var(--c);color:#fff;border-color:var(--c)}
+label.r{display:grid;grid-template-columns:1fr auto;gap:0 8px;margin:6px 0}label.r input{grid-column:1/3;width:100%;accent-color:var(--c)}label.r b{font-variant-numeric:tabular-nums}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:0 0 10px;padding:6px 10px 8px}legend{font-weight:600;padding:0 4px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0}.ck{display:flex;gap:5px;align-items:center}
+.hint{color:var(--mut);font-size:12.5px;margin:4px 0}
+canvas{width:100%;height:150px;display:block}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin:0 0 4px}.leg i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:3px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+.w{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+#verdict{margin-top:8px;padding:8px 10px;background:var(--hi);border-left:4px solid var(--c);border-radius:3px}#verdict p{margin:2px 0}
+svg text{fill:var(--fg);font-size:12px;font-family:inherit}svg .p{font-size:10px;fill:var(--mut)}
+svg .b{fill:var(--card);stroke:var(--fg);stroke-width:1.4}svg [data-go]{cursor:pointer}svg [data-go]:hover .b{stroke:var(--c);stroke-width:2.4}
+#bd{color:var(--fg);width:100%;height:auto}#bd .in,#bd .by{transition:opacity .2s}#bd.single .in{opacity:.18}#bd:not(.single) .by{display:none}
+#bd .dist{cursor:pointer}#bd .dist.on *{stroke:var(--bad);fill:var(--bad);font-weight:600}
+.flash{animation:fl 1s}@keyframes fl{0%{background:var(--hi)}100%{background:transparent}}
+.ex{border:1px solid var(--line);border-radius:5px;margin:6px 0;padding:6px 9px}.ex.sel{border-color:var(--c);background:var(--hi)}.ex>b{cursor:pointer;display:block}
+.opt{display:block;width:100%;text-align:left;margin:3px 0}.opt.ok{border-color:var(--ok);color:var(--ok)}.opt.no{border-color:var(--bad);color:var(--bad)}
+.done{color:var(--ok);font-weight:600}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<header><div><h1>Cascade Control Lab</h1><p>Compare cascade and single-loop control on the same process, disturbance and noise. Predict, run, then explain what you see.</p></div>
+<div class="row"><span>Diagram shows:</span><select id="view"><option value="casc">Cascade</option><option value="single">Single loop</option></select><button id="reset">Reset all</button></div></header>
+<main><section>
+<div class="card"><svg id="bd" viewBox="0 0 880 250" role="img" aria-label="Block diagram of cascade control">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="currentColor"/></marker></defs>
+<g stroke="currentColor" fill="none" stroke-width="1.4" marker-end="url(#ar)">
+<path d="M12 100H50"/><path d="M70 100H90"/><g class="in"><path d="M186 100H215"/><path d="M235 100H255"/><path d="M351 100H372"/><path d="M600 100V170H225V110"/></g>
+<path class="by" d="M200 100V58H360V100" stroke-dasharray="4 3"/>
+<path d="M412 100H435"/><path d="M455 100H475"/><path d="M575 100H625"/><path d="M725 100H750"/><path d="M770 100H860"/><path d="M820 100V220H60V110"/></g>
+<g class="dist" id="dd2" data-loc="inner" tabindex="0"><path d="M445 36V90" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ar)"/><text x="425" y="30">d₂ (inner)</text></g>
+<g class="dist" id="dd1" data-loc="outer" tabindex="0"><path d="M760 36V90" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ar)"/><text x="738" y="30">d₁ (outer)</text></g>
+<text x="4" y="92">r</text><text x="862" y="94">y₁</text><text x="606" y="93">y₂</text><text x="826" y="170">n₁</text><text x="606" y="150">n₂</text>
+<text x="197" y="92" class="p in">SP₂</text><text x="44" y="123">−</text><text class="in" x="212" y="123">−</text>
+<circle class="b" cx="60" cy="100" r="10"/><g class="in"><circle class="b" cx="225" cy="100" r="10"/></g><circle class="b" cx="445" cy="100" r="10"/><circle class="b" cx="760" cy="100" r="10"/>
+<g data-go="Controllers" tabindex="0"><rect class="b" x="90" y="78" width="96" height="44" rx="3"/><text id="nC1" x="138" y="96" text-anchor="middle">C₁ outer</text><text id="tC1" class="p" x="138" y="112" text-anchor="middle"></text></g>
+<g class="in" data-go="Controllers" tabindex="0"><rect class="b" x="255" y="78" width="96" height="44" rx="3"/><text x="303" y="96" text-anchor="middle">C₂ inner</text><text id="tC2" class="p" x="303" y="112" text-anchor="middle"></text></g>
+<g data-go="Practical" tabindex="0"><rect class="b" x="372" y="86" width="40" height="28" rx="3"/><text x="392" y="104" text-anchor="middle">sat</text></g>
+<g data-go="Process" tabindex="0"><rect class="b" x="475" y="78" width="100" height="44" rx="3"/><text x="525" y="96" text-anchor="middle">G₂ secondary</text><text id="tG2" class="p" x="525" y="112" text-anchor="middle"></text></g>
+<g data-go="Process" tabindex="0"><rect class="b" x="625" y="78" width="100" height="44" rx="3"/><text x="675" y="96" text-anchor="middle">G₁ primary</text><text id="tG1" class="p" x="675" y="112" text-anchor="middle"></text></g>
+</svg><p class="hint">Click blocks to open their parameters. Click d₁ or d₂ to move the disturbance. The faded inner loop is bypassed in single-loop mode.</p></div>
+<div class="card"><div class="leg"><span><i style="color:var(--c)"></i>Cascade</span><span><i style="color:var(--s)"></i>Single loop</span><span><i style="color:var(--mut);border-top-style:dashed"></i>Setpoint (cascade: SP₂ in middle plot)</span><span>Dashed vertical line: disturbance start</span></div>
+<canvas id="c1" role="img" aria-label="Primary variable y1"></canvas><canvas id="c2" role="img" aria-label="Secondary variable y2"></canvas><canvas id="c3" role="img" aria-label="Controller output u"></canvas></div>
+<div class="card" id="met"></div></section>
+<aside><div class="card"><div class="tabs" id="tabs"></div><div id="pane"></div></div></aside></main>
+<script>
+const D={tau1:25,th1:5,K1:1,tau2:4,th2:1,K2:1,eK1:1,eK2:1,eTh:1,dLoc:'inner',dType:'step',dMag:1,dPer:40,t0:20,spMag:0,n1:0,n2:0,lim:10,aw:1,T:200,
+S:{m:'PI',a:1,f:1,Kc:1,Ti:30,Td:0},O:{m:'PI',a:1,f:1,Kc:1,Ti:30,Td:0},I:{m:'PI',a:1,f:1,Kc:2,Ti:4,Td:0}};
+let P=JSON.parse(JSON.stringify(D)),tab='Process',ex={i:-1,p:-1},chDone=[0,0,0,0],R={};
+const $=i=>document.getElementById(i),fmt=v=>(+(+v).toFixed(2)).toString();
+const getk=k=>k.split('.').reduce((o,x)=>o[x],P);
+function setk(k,v){const a=k.split('.');if(a.length>1&&a[1]=='a'&&!v&&P[a[0]].a)Object.assign(P[a[0]],tune(a[0]));const l=a.pop();a.reduce((o,x)=>o[x],P)[l]=v}
+/* ---------- SIMC tuning on the NOMINAL model ---------- */
+function tune(n){let K,tau,th;const p=P,c=p[n];
+ if(n=='I'){K=p.K2;tau=p.tau2;th=p.th2}
+ else if(n=='O'){const ci=p.I.f*p.th2;K=p.K1;tau=p.tau1+ci/2;th=p.th1+p.th2+ci/2}
+ else{const a=Math.max(p.tau1,p.tau2),b=Math.min(p.tau1,p.tau2);K=p.K1*p.K2;tau=a+b/2;th=p.th1+p.th2+b/2}
+ const tc=c.f*th;return{Kc:tau/(K*(tc+th)),Ti:Math.min(tau,4*(tc+th)),Td:c.m=='PID'?th/3:0}}
+const ctl=n=>P[n].a?{...P[n],...tune(n)}:P[n];
+/* ---------- simulation ---------- */
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const gauss=r=>Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(6.2831853*r());
+const dist=t=>{if(t<P.t0)return 0;const s=t-P.t0,m=P.dMag;return P.dType=='step'?m:P.dType=='ramp'?m*s/30:P.dType=='pulse'?(s<15?m:0):m*Math.sin(6.2831853*s/P.dPer)};
+function pid(c,s,e,y,lo,hi,dt){let D=0;if(c.m=='PID'&&c.Td>0){const a=c.Td/(c.Td+8*dt);s.D=a*s.D-c.Kc*8*a*(y-s.y);D=s.D}s.y=y;
+ const v=c.Kc*e+s.I+D,u=Math.min(hi,Math.max(lo,v));
+ if(c.m!='P')s.I+=dt*(c.Kc/c.Ti*e+(P.aw?(u-v)/Math.max(c.Ti*.5,dt):0));return u}
+function run(casc){
+ const dt=.1,N=Math.round(P.T/dt),rn=rng(11),K1=P.K1*P.eK1,K2=P.K2*P.eK2,b1=Math.round(P.th1*P.eTh/dt),b2=Math.round(P.th2*P.eTh/dt);
+ const a1=1-Math.exp(-dt/P.tau1),a2=1-Math.exp(-dt/P.tau2),C={S:ctl('S'),O:ctl('O'),I:ctl('I')},st={S:{I:0,D:0,y:0},O:{I:0,D:0,y:0},I:{I:0,D:0,y:0}};
+ const A=()=>new Float32Array(N).fill(NaN),Y1=A(),Y2=A(),U=A(),SP=A(),S2=A(),i1=new Float32Array(N),i2=new Float32Array(N);
+ let x1=0,x2=0,uns=false,nk=N;
+ for(let k=0;k<N;k++){const t=k*dt,d=dist(t),d2=P.dLoc=='inner'?d:0,d1=P.dLoc=='outer'?d:0,sp=t>=5?P.spMag:0;
+  const e1=gauss(rn)*P.n1,e2=gauss(rn)*P.n2,y1=x1+d1,m1=y1+e1,m2=x2+e2;let u,s2=NaN;
+  if(casc){s2=pid(C.O,st.O,sp-m1,m1,-5,5,dt);u=pid(C.I,st.I,s2-m2,m2,-P.lim,P.lim,dt)}else u=pid(C.S,st.S,sp-m1,m1,-P.lim,P.lim,dt);
+  Y1[k]=y1;Y2[k]=x2;U[k]=u;SP[k]=sp;S2[k]=s2;i2[k]=u+d2;i1[k]=x2;
+  x2+=a2*(K2*(k>=b2?i2[k-b2]:0)-x2);x1+=a1*(K1*(k>=b1?i1[k-b1]:0)-x1);
+  if(Math.abs(x1)>100||Math.abs(x2)>100){uns=true;nk=k+1;break}}
+ const band=.02*Math.max(P.dMag,P.spMag,.1);let iae=0,ise=0,pk=0,last=0,tv=0,sat=0;
+ for(let k=0;k<nk;k++){const e=SP[k]-Y1[k];iae+=Math.abs(e)*dt;ise+=e*e*dt;pk=Math.max(pk,Math.abs(e));if(Math.abs(e)>band)last=k*dt;if(k)tv+=Math.abs(U[k]-U[k-1]);if(Math.abs(U[k])>=P.lim-1e-6)sat++}
+ return{Y1,Y2,U,SP,S2,uns,iae:uns?Infinity:iae,ise:uns?Infinity:ise,pk,st:uns?Infinity:(last>P.T-3?Infinity:Math.max(0,last-P.t0)),tv,sat:100*sat/nk}}
+/* ---------- plotting ---------- */
+function plot(cv,S,o){const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W)return;cv.width=W*dpr;cv.height=H*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);const cs=getComputedStyle(document.documentElement),mut=cs.getPropertyValue('--mut'),ln=cs.getPropertyValue('--line');
+ const L=44,Rr=8,T=6,B=20,w=W-L-Rr,h=H-T-B,c=o.c;let lo=0,hi=0;
+ S.forEach(s=>{for(let i=0;i<s.d.length;i++){const v=s.d[i];if(v==v){lo=Math.min(lo,Math.max(-c,v));hi=Math.max(hi,Math.min(c,v))}}});
+ if(o.lim&&o.lim<4){lo=Math.min(lo,-o.lim*1.1);hi=Math.max(hi,o.lim*1.1)}if(hi-lo<.2){hi+=.1;lo-=.1}const pd=(hi-lo)*.08;lo-=pd;hi+=pd;
+ const X=t=>L+t/P.T*w,Y=v=>T+h*(1-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)),rg=hi-lo,s0=Math.pow(10,Math.floor(Math.log10(rg/4))),stp=[1,2,5,10].map(m=>m*s0).find(s=>rg/s<=6);
+ g.font='11px system-ui,sans-serif';g.fillStyle=mut;g.strokeStyle=ln;g.lineWidth=1;g.textAlign='right';
+ for(let v=Math.ceil(lo/stp)*stp;v<=hi;v+=stp){const y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(L+w,y);g.stroke();g.fillText(fmt(v),L-5,y+4)}
+ g.textAlign='center';const dx=P.T>250?50:25;for(let t=0;t<=P.T;t+=dx)g.fillText(t,X(t),H-5);g.textAlign='left';g.fillText(o.l,L+6,T+12);
+ g.setLineDash([4,4]);g.strokeStyle=mut;if(P.t0<P.T){g.beginPath();g.moveTo(X(P.t0),T);g.lineTo(X(P.t0),T+h);g.stroke()}
+ if(o.lim&&o.lim<4)[-1,1].forEach(m=>{g.beginPath();g.moveTo(L,Y(m*o.lim));g.lineTo(L+w,Y(m*o.lim));g.stroke()});
+ S.forEach(s=>{g.setLineDash(s.dash?[5,4]:[]);g.strokeStyle=s.col;g.lineWidth=s.dash?1.2:1.8;g.beginPath();let pen=false;
+  for(let i=0;i<s.d.length;i+=2){const v=s.d[i];if(v!=v){pen=false;continue}const x=X(i*.1),y=Y(v);pen?g.lineTo(x,y):g.moveTo(x,y);pen=true}g.stroke()});g.setLineDash([])}
+/* ---------- render ---------- */
+let pending=0;const update=()=>{if(!pending){pending=1;requestAnimationFrame(()=>{pending=0;render()})}};
+function render(){const mc=run(true),ms=run(false);R={mc,ms};const cs=getComputedStyle(document.documentElement),cc=cs.getPropertyValue('--c'),sc=cs.getPropertyValue('--s'),mu=cs.getPropertyValue('--mut');
+ plot($('c1'),[{d:ms.SP,col:mu,dash:1},{d:ms.Y1,col:sc},{d:mc.Y1,col:cc}],{l:'y₁ primary (controlled) variable',c:10});
+ plot($('c2'),[{d:mc.S2,col:mu,dash:1},{d:ms.Y2,col:sc},{d:mc.Y2,col:cc}],{l:'y₂ secondary variable',c:10});
+ plot($('c3'),[{d:ms.U,col:sc},{d:mc.U,col:cc}],{l:'u controller output (limits dashed)',c:30,lim:P.lim});
+ const f=v=>isFinite(v)?(v>=100?v.toFixed(0):v.toFixed(2)):'∞',rows=[['IAE of y₁','iae'],['ISE of y₁','ise'],['Peak |error|','pk'],['Settling time after disturbance [s]','st'],['Control activity (total variation of u)','tv'],['Time saturated [%]','sat']];
+ let h='<table><tr><th>Performance</th><th style="color:var(--c)">Cascade</th><th style="color:var(--s)">Single</th><th>Single ÷ Cascade</th></tr>';
+ rows.forEach(([n,k])=>{const a=mc[k],b=ms[k],r=a>0?b/a:(b>0?Infinity:1),cw=a<b-1e-9,sw=b<a-1e-9;h+=`<tr><td>${n}</td><td class="${cw?'w':''}">${f(a)}</td><td class="${sw?'w':''}">${f(b)}</td><td>${k=='sat'?'—':isFinite(r)?r.toFixed(2)+'×':'∞'}</td></tr>`});
+ const r=ms.iae/mc.iae,rp=ms.pk/mc.pk;let v=[];
+ if(mc.uns&&ms.uns)v.push('<b class="bad">Both schemes are unstable.</b> Reduce gains or reduce the model error.');
+ else if(mc.uns)v.push('<b class="bad">Cascade is unstable</b> while single loop is not. Check inner-loop gain error, inner/outer speed separation and dead time.');
+ else if(ms.uns)v.push('<b class="bad">Single loop is unstable</b> while cascade is stable.');
+ else if(r>1.5)v.push(`<b class="w">Cascade clearly better:</b> IAE ${r.toFixed(1)}× lower, peak error ${rp.toFixed(1)}× lower.`);
+ else if(r>.9)v.push(`<b>Little difference</b> (IAE ratio ${r.toFixed(2)}). Cascade is not paying for its extra sensor and loop here.`);
+ else v.push(`<b class="bad">Cascade is worse</b> (IAE ratio ${r.toFixed(2)}).`);
+ const sp=P.tau1/P.tau2;
+ v.push(`Speed ratio τ₁/τ₂ = ${sp.toFixed(1)} ${sp<3?'(inner loop is not much faster than outer: little room for cascade to help)':'(good time-scale separation)'}; dead-time ratio θ₂/τ₂ = ${(P.th2/P.tau2).toFixed(2)}.`);
+ v.push(P.dLoc=='outer'?'Disturbance enters at the primary output: the secondary sensor cannot see it, so the benefit is limited to retuning effects.':'Disturbance enters inside the inner loop: the secondary sensor sees it and the inner loop can act before y₁ moves.');
+ if(!mc.uns&&mc.tv>2*ms.tv&&ms.tv>0)v.push(`Cascade control activity is ${(mc.tv/ms.tv).toFixed(1)}× higher, which is typically noise or derivative action driving the actuator.`);
+ if(mc.sat>3||ms.sat>3)v.push('The actuator spends time at its limit. No structure can reject what the actuator cannot counteract; look at windup recovery.');
+ $('met').innerHTML=h+'</table><div id="verdict">'+v.map(x=>'<p>'+x+'</p>').join('')+'</div>';
+ for(let i=0;i<chDone.length;i++)if(!chDone[i]&&CH[i].ok&&CH[i].ok(mc,ms,r))chDone[i]=1;
+ if(tab=='Labs'){const el=$('chs');if(el)el.innerHTML=chHtml()}}
+function refresh(){
+ document.querySelectorAll('[data-k]').forEach(e=>{const k=e.dataset.k,[n,q]=k.split('.');let v=getk(k);
+  if(q&&'Kc,Ti,Td'.includes(q)){e.disabled=!!P[n].a;if(P[n].a)v=tune(n)[q]}
+  if(e.type=='checkbox')e.checked=!!v;else e.value=v});
+ document.querySelectorAll('[data-v]').forEach(e=>{const k=e.dataset.v,[n,q]=k.split('.');e.textContent=fmt(q&&'Kc,Ti,Td'.includes(q)&&P[n].a?tune(n)[q]:getk(k))});
+ const cd=n=>{const c=ctl(n);return `${c.m} Kc=${fmt(c.Kc)}${c.m!='P'?' Ti='+fmt(c.Ti):''}${c.m=='PID'?' Td='+fmt(c.Td):''}`};
+ const casc=$('view').value=='casc';$('bd').classList.toggle('single',!casc);
+ $('nC1').textContent=casc?'C₁ outer':'C single';$('tC1').textContent=cd(casc?'O':'S');$('tC2').textContent=cd('I');
+ $('tG1').textContent=`K=${fmt(P.K1*P.eK1)} τ=${P.tau1} θ=${fmt(P.th1*P.eTh)}`;$('tG2').textContent=`K=${fmt(P.K2*P.eK2)} τ=${P.tau2} θ=${fmt(P.th2*P.eTh)}`;
+ $('dd2').classList.toggle('on',P.dLoc=='inner');$('dd1').classList.toggle('on',P.dLoc=='outer')}
+/* ---------- panes ---------- */
+const sl=(k,l,a,b,s)=>`<label class="r"><span>${l}</span><b data-v="${k}"></b><input type="range" data-k="${k}" min="${a}" max="${b}" step="${s}"></label>`;
+const se=(k,l,o)=>`<label class="r"><span>${l}</span><span></span><select data-k="${k}" style="grid-column:1/3">${o.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select></label>`;
+const cp=(n,t)=>`<fieldset id="ctl${n}"><legend>${t}</legend><div class="row"><select data-k="${n}.m"><option>P</option><option>PI</option><option>PID</option></select><label class="ck"><input type="checkbox" data-k="${n}.a">SIMC auto-tune</label></div>`+sl(n+'.f','Aggressiveness τc/θ (smaller = faster)',.3,5,.1)+sl(n+'.Kc','Gain Kc',0,12,.05)+sl(n+'.Ti','Integral time Ti [s]',1,100,.5)+sl(n+'.Td','Derivative time Td [s]',0,15,.1)+'</fieldset>';
+const PANES={
+Process:()=>'<p class="hint">Nominal process: G = K·e<sup>−θs</sup>/(τs+1). The secondary process G₂ sits between the actuator and G₁.</p>'+sl('tau1','Primary τ₁ [s]',2,80,1)+sl('th1','Primary dead time θ₁ [s]',.2,30,.2)+sl('K1','Primary gain K₁',.2,3,.05)+sl('tau2','Secondary τ₂ [s]',.5,60,.5)+sl('th2','Secondary dead time θ₂ [s]',.2,20,.2)+sl('K2','Secondary gain K₂',.2,3,.05)+sl('T','Simulation length [s]',100,400,50),
+Disturbance:()=>se('dLoc','Location',[['inner','d₂: at the actuator side of G₂ (inner loop)'],['outer','d₁: at the primary output']])+se('dType','Type',[['step','Step'],['ramp','Ramp'],['pulse','Pulse (15 s)'],['sine','Sinusoid']])+sl('dMag','Magnitude',0,3,.1)+sl('dPer','Sinusoid period [s]',2,120,1)+sl('t0','Start time [s]',5,100,1)+sl('spMag','Setpoint step at t = 5 s',0,2,.1)+'<p class="hint">With a setpoint step the metrics include tracking too. Cascade mainly helps disturbance rejection, much less setpoint tracking.</p>',
+Controllers:()=>'<p class="hint">Auto-tuning uses SIMC rules on the nominal model: single loop on the lumped process, inner on G₂, outer on G₁ plus the inner loop lag. Untick auto to tune by hand.</p>'+cp('S','Single-loop controller')+cp('O','Cascade outer controller C₁')+cp('I','Cascade inner controller C₂'),
+Practical:()=>sl('n1','Noise on y₁ (σ)',0,.3,.01)+sl('n2','Noise on y₂ (σ)',0,.3,.01)+sl('lim','Actuator limit ±u',.2,10,.1)+'<label class="ck"><input type="checkbox" data-k="aw">Anti-windup (back-calculation)</label><p class="hint">Model uncertainty: the controllers are tuned on nominal values, the real process differs.</p>'+sl('eK2','Actual G₂ gain ÷ nominal',.2,4,.05)+sl('eK1','Actual G₁ gain ÷ nominal',.2,4,.05)+sl('eTh','Actual dead times ÷ nominal',.3,3,.05),
+Labs:()=>'<div id="exs"></div><h3 style="margin:10px 0 2px">Exploratory challenges</h3><div id="chs"></div>'};
+const EX=[
+{t:'Inner disturbance: the cascade sweet spot',s:{},q:'A step disturbance hits the actuator side (d₂). Compared with single loop, the peak deviation of y₁ under cascade will be…',o:['about the same','slightly smaller','several times smaller'],a:2,w:'The secondary sensor sees d₂ after only the fast inner dynamics, and the inner loop corrects it before it travels through the slow primary process. Single loop must wait for y₁ to move. Watch y₂ in the middle plot.'},
+{t:'Disturbance at the primary output',s:{dLoc:'outer'},q:'Now the disturbance acts at the output of the slow process (d₁). The cascade advantage will be…',o:['large','negligible','cascade becomes unstable'],a:1,w:'The inner loop never sees d₁; only the outer controller reacts, exactly as in single loop. Cascade only helps for disturbances that act inside the inner loop.'},
+{t:'Slow secondary loop',s:{tau2:20,th2:3},q:'The secondary process is almost as slow as the primary (τ₂ = 20 s vs τ₁ = 25 s), disturbance still at d₂. The advantage will…',o:['grow','shrink a lot','be unchanged'],a:1,w:'Cascade rests on time-scale separation. When the inner loop is not much faster than the outer one, early detection buys little and the loops interact. Compare the speed ratio in the verdict.'},
+{t:'Dead time in the secondary loop',s:{tau2:5,th2:10},q:'The secondary loop now has 10 s dead time before its measurement. The benefit of the inner loop…',o:['is unaffected','is bounded by this dead time','increases'],a:1,w:'The disturbance enters before the delay, so y₂ cannot reveal it for θ₂ seconds, and the inner loop must be detuned. A delay-dominated secondary loop gives little advance warning.'},
+{t:'Noise on the secondary sensor',s:{n2:.05,'I.m':'PID'},q:'Noise (σ = 0.05) only on y₂, inner loop with PID. Single loop does not use y₂. Control activity of cascade will be…',o:['lower','similar','higher'],a:2,w:'An extra measurement is an extra noise entry. The fast, high-gain inner loop passes it straight to the actuator, and derivative action amplifies it. Try setting Td to zero or raising τc/θ.'},
+{t:'Saturation and windup',s:{dType:'pulse',dMag:1.5,lim:.8,aw:0},q:'A 15 s pulse needs u = −1.5 but the actuator is limited to ±0.8. After the pulse ends…',o:['both recover at once','integrator windup delays recovery; anti-windup helps','cascade is immune to windup'],a:1,w:'Integrators keep accumulating while the actuator is stuck. Turn anti-windup on in the Practical tab and compare recovery. Cascade has two integrators, so both can wind up.'},
+{t:'Gain uncertainty in the secondary process',s:{eK2:.4,dMag:0,spMag:1},q:'The actual G₂ gain is only 0.4× nominal (a worn valve). Which scheme gets more sluggish for the setpoint step?',o:['single loop','cascade','equal'],a:0,w:'Inner-loop integral action forces y₂ to follow SP₂ whatever K₂ is, so the outer loop still sees almost the nominal process. Single loop loses loop gain directly. Cascade desensitises the primary loop to inner-loop variations.'},
+{t:'Inner loop slower than outer',s:{'I.a':0,'I.Kc':.3,'I.Ti':20},q:'The inner loop is detuned to be very slow, but the outer controller is still tuned as if the inner loop were fast. Result?',o:['cascade still beats single','outer loop oscillates; cascade can be worse','no change'],a:1,w:'The design rule is inner loop several times faster than outer. Break it and the outer loop sees extra lag and the two loops fight.'},
+{t:'Proportional-only inner loop',s:{'I.m':'P'},q:'Inner loop is P-only (offset in y₂), outer is PI. Will y₁ still return to its setpoint?',o:['no, the offset is inherited','yes, the outer integrator removes it','only with very high Kc'],a:1,w:'The outer integrator keeps changing SP₂ until y₁ is correct, so inner offset does not matter. This is why inner loops are often P or PI and only the outer one needs integral action.'}];
+const CH=[
+{t:'Find a stable setting where cascade is worse than single loop (IAE ratio < 1).',ok:(c,s,r)=>!c.uns&&!s.uns&&r<1},
+{t:'Disturbance at d₁ with cascade advantage under 20% (IAE ratio < 1.2) and both stable.',ok:(c,s,r)=>P.dLoc=='outer'&&!c.uns&&!s.uns&&r<1.2},
+{t:'Find a model-gain error that destabilises only one of the two schemes.',ok:(c,s)=>c.uns!=s.uns},
+{t:'Sweep the sinusoid period for d₂. Where is the cascade advantage largest, and why does it vanish at high and low frequency? (Reflect, no auto-check.)',ok:null}];
+const chHtml=()=>CH.map((c,i)=>`<p class="${chDone[i]?'done':''}">${chDone[i]?'✓ ':'□ '}${c.t}</p>`).join('');
+function renderLab(){const h=EX.map((e,i)=>`<div class="ex ${i==ex.i?'sel':''}"><b data-ex="${i}" tabindex="0">${i+1}. ${e.t}</b>`+(i==ex.i?`<p><b>Predict:</b> ${e.q}</p>`+e.o.map((o,j)=>`<button class="opt ${ex.p>=0?(j==e.a?'ok':j==ex.p?'no':''):''}" data-opt="${j}" ${ex.p>=0?'disabled':''}>${o}</button>`).join('')+(ex.p>=0?`<p><b>${ex.p==e.a?'Correct.':'Not quite.'}</b> ${e.w}</p>`:'<p class="hint">The scenario is already loaded. Look at the plots, then choose.</p>'):'')+'</div>').join('');
+ $('exs').innerHTML=h;$('chs').innerHTML=chHtml()}
+function setTab(t){tab=t;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.textContent==t));$('pane').innerHTML=PANES[t]();if(t=='Labs')renderLab();refresh()}
+$('tabs').innerHTML=Object.keys(PANES).map(t=>`<button>${t}</button>`).join('');
+$('tabs').onclick=e=>{if(e.target.tagName=='BUTTON')setTab(e.target.textContent)};
+$('pane').addEventListener('input',e=>{const t=e.target,k=t.dataset.k;if(!k)return;setk(k,t.type=='checkbox'?+t.checked:t.type=='range'?+t.value:t.value);refresh();update()});
+$('pane').addEventListener('click',e=>{const b=e.target.closest('[data-ex]'),o=e.target.closest('[data-opt]');
+ if(b){ex={i:+b.dataset.ex,p:-1};P=JSON.parse(JSON.stringify(D));const s=EX[ex.i].s;for(const k in s)setk(k,s[k]);renderLab();refresh();update()}
+ else if(o){ex.p=+o.dataset.opt;renderLab()}});
+document.querySelectorAll('.dist').forEach(g=>{const f=()=>{P.dLoc=g.dataset.loc;refresh();update();if(tab=='Disturbance')setTab(tab)};g.onclick=f;g.onkeydown=e=>{if(e.key=='Enter'||e.key==' ')f()}});
+document.querySelectorAll('[data-go]').forEach(g=>{const f=()=>{setTab(g.dataset.go);$('pane').classList.add('flash');setTimeout(()=>$('pane').classList.remove('flash'),1000)};g.onclick=f;g.onkeydown=e=>{if(e.key=='Enter')f()}});
+$('view').onchange=refresh;$('reset').onclick=()=>{P=JSON.parse(JSON.stringify(D));ex={i:-1,p:-1};setTab(tab);update()};
+addEventListener('resize',update);matchMedia('(prefers-color-scheme:dark)').addEventListener('change',update);
+setTab('Process');update();
+</script><script src="../assets/labs.js"></script>
+<script src="../assets/lab-nav.js"></script></body></html>
