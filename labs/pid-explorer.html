@@ -1,470 +1,1033 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PID Control Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>General PID Explorer</title>
 <style>
-:root{
-  --bg:#f4f5f7;--panel:#ffffff;--ink:#1c222a;--muted:#5d6773;--line:#dde2e8;--grid:#edf0f3;--accent:#2563eb;--accent-soft:#e7efff;
-  --c-r:#6b7280;--c-y:#2563eb;--c-ym:#a9c1f3;--c-u:#e5701a;--c-v:#9a5a12;--c-p:#16a34a;--c-i:#9333ea;--c-d:#dc2626;--c-ghost:#b4b9c1;--c-lim:#dc2626;--c-dist:#0d9488;
-  --good:#15803d;--warn:#b45309;--bad:#b91c1c;
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --panel2: #f9fafb; --text: #1d2330; --muted: #5d6677; --line: #dde1e8; --accent: #2563eb; --accent-soft: #e6eefe;
+  --warn: #b45309; --warn-bg: #fff7e6; --err: #c62828; --ok: #15803d; --grid: #e7eaf0; --axis: #8a93a3;
+  --c-r: #6b7280; --c-rf: #e69f00; --c-y: #0b6fb8; --c-yt: #56b4e9; --c-yn: #cc4fa0; --c-u: #d55e00; --c-ur: #009e73; --c-d: #7c7f86;
+  --c-e: #a07800; --c-P: #7b4fd6; --c-I: #0f8f86; --c-D: #c0392b; --c-ksr: #8892a0; --c-gfb: #2f9fd8; --c-gfb2: #b86a00; --c-un: #cc4fa0; --c-urn: #8a3d9c; --c-pin: #9aa3b2;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#111418;--panel:#1a1e24;--ink:#e5e8ec;--muted:#98a1ac;--line:#2b3139;--grid:#232830;--accent:#60a5fa;--accent-soft:#1d2a3d;
-  --c-r:#a1a1aa;--c-y:#60a5fa;--c-ym:#2c4a77;--c-u:#fb923c;--c-v:#fcd34d;--c-p:#4ade80;--c-i:#c084fc;--c-d:#f87171;--c-ghost:#5a606a;--c-lim:#f87171;--c-dist:#2dd4bf;
-  --good:#4ade80;--warn:#fbbf24;--bad:#f87171;
-}}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.app{display:grid;grid-template-columns:330px minmax(0,1fr) 310px;height:100vh;gap:10px;padding:10px}
-.col{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto;min-height:0}
-.side{padding:10px 12px}
-h1{font-size:16px;margin:2px 0 8px}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px;border-top:1px solid var(--line);padding-top:10px}
-h2:first-of-type{border-top:0;padding-top:0}
-.row{display:grid;grid-template-columns:78px 1fr 62px 20px;align-items:center;gap:6px;margin:4px 0}
-.row label{white-space:nowrap}
-.row.disabled{opacity:.4;pointer-events:none}
-input[type=range]{width:100%;accent-color:var(--accent)}
-input[type=number]{width:62px;padding:2px 4px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
-select{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);width:100%}
-.unit{color:var(--muted);font-size:11px}
-.sel{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:6px;margin:5px 0}
-.chk{display:flex;flex-wrap:wrap;gap:4px 14px;margin:5px 0}
-.chk label{display:flex;align-items:center;gap:5px;cursor:pointer}
-.tf{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;margin:6px 0;color:var(--ink)}
-button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:4px 9px;cursor:pointer}
-button:hover{border-color:var(--accent)}
-button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btns{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
-.toggles{display:flex;gap:6px;margin:6px 0}
-.toggles label{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:4px 0;cursor:pointer;font-weight:600;user-select:none}
-.toggles input{display:none}
-.toggles label.on-P{background:color-mix(in srgb,var(--c-p) 18%,transparent);border-color:var(--c-p)}
-.toggles label.on-I{background:color-mix(in srgb,var(--c-i) 18%,transparent);border-color:var(--c-i)}
-.toggles label.on-D{background:color-mix(in srgb,var(--c-d) 18%,transparent);border-color:var(--c-d)}
-.main{display:flex;flex-direction:column;overflow:hidden;padding:8px 10px}
-.plotwrap{position:relative;min-height:0}
-.plotwrap.top{flex:1.15}
-.plotwrap.bot{flex:1}
-canvas{display:block;width:100%;height:100%}
-.ptitle{font-size:12px;font-weight:600;color:var(--muted);margin:2px 0 0 4px;height:16px}
-.metrics{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:6px;flex:none}
-.tile{border:1px solid var(--line);border-radius:7px;padding:4px 7px;min-width:0}
-.tile .k{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.notes{flex:none;height:54px;overflow:auto;margin-top:6px;font-size:12.5px;border-left:3px solid var(--accent);padding:2px 8px;background:var(--accent-soft);border-radius:0 6px 6px 0}
-.notes div{margin:1px 0}
-.info{padding:10px 12px}
-.card{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:7px;padding:6px 9px;margin:7px 0;transition:opacity .15s}
-.card.P{border-left-color:var(--c-p)}.card.I{border-left-color:var(--c-i)}.card.D{border-left-color:var(--c-d)}.card.F{border-left-color:var(--muted)}.card.W{border-left-color:var(--c-u)}
-.card.off{opacity:.45}
-.card b{display:block;margin-bottom:2px}
-.card ul{margin:2px 0 0 16px;padding:0}
-.plus{color:var(--good)}.minus{color:var(--bad)}
-.scen{display:block;width:100%;text-align:left;margin:4px 0;padding:5px 8px}
-.scen small{display:block;color:var(--muted)}
-#scenText{font-size:12.5px;background:var(--accent-soft);border-radius:6px;padding:6px 8px;margin:6px 0;min-height:20px}
-@media (max-width:1150px){
-  .app{grid-template-columns:300px minmax(0,1fr);grid-template-rows:100vh auto;height:auto}
-  .info{grid-column:1/3}
-  .side{max-height:calc(100vh - 20px)}
-  .main{height:calc(100vh - 20px)}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1b1f27; --panel2: #20252f; --text: #e6e9ef; --muted: #9aa3b2; --line: #2f3542; --accent: #6ea0ff; --accent-soft: #1e2a44;
+    --warn: #f0b35a; --warn-bg: #2d2416; --err: #ff6b6b; --ok: #4ade80; --grid: #262b35; --axis: #7c8696;
+    --c-r: #aab2bf; --c-rf: #f5b041; --c-y: #4fa8ff; --c-yt: #8fd3ff; --c-yn: #ff7ccf; --c-u: #ff7a3d; --c-ur: #2fd39e; --c-d: #a3a8b0;
+    --c-e: #e8c547; --c-P: #b392ff; --c-I: #3fd6c9; --c-D: #ff6b5b; --c-ksr: #a8b0bd; --c-gfb: #6cc4ff; --c-gfb2: #f0a24a; --c-un: #ff7ccf; --c-urn: #d08ae0; --c-pin: #5c6575;
+  }
 }
-@media (max-width:720px){
-  .app{grid-template-columns:1fr;padding:8px}
-  .info{grid-column:auto}.side{max-height:none}
-  .main{height:90vh}
-  .metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1b1f27; --panel2: #20252f; --text: #e6e9ef; --muted: #9aa3b2; --line: #2f3542; --accent: #6ea0ff; --accent-soft: #1e2a44;
+  --warn: #f0b35a; --warn-bg: #2d2416; --err: #ff6b6b; --ok: #4ade80; --grid: #262b35; --axis: #7c8696;
+  --c-r: #aab2bf; --c-rf: #f5b041; --c-y: #4fa8ff; --c-yt: #8fd3ff; --c-yn: #ff7ccf; --c-u: #ff7a3d; --c-ur: #2fd39e; --c-d: #a3a8b0;
+  --c-e: #e8c547; --c-P: #b392ff; --c-I: #3fd6c9; --c-D: #ff6b5b; --c-ksr: #a8b0bd; --c-gfb: #6cc4ff; --c-gfb2: #f0a24a; --c-un: #ff7ccf; --c-urn: #d08ae0; --c-pin: #5c6575;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.app { display: grid; grid-template-columns: 330px minmax(0, 1fr) 330px; height: 100vh; }
+aside, main { overflow-y: auto; min-height: 0; }
+aside { background: var(--panel); border-right: 1px solid var(--line); padding: 10px 12px 30px; }
+aside.right { border-right: 0; border-left: 1px solid var(--line); }
+main { padding: 10px 14px 30px; }
+h1 { font-size: 17px; margin: 0; }
+h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 16px 0 6px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+h2:first-child { margin-top: 2px; }
+h3 { font-size: 13px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 11.5px; }
+.ctl { margin: 6px 0 8px; }
+.ctl .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ctl label { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.ctl label .sub { font-weight: 400; }
+input.num { width: 86px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); color: var(--text); font: 12.5px ui-monospace, Consolas, monospace; text-align: right; }
+input.num:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+input.num.over { border-color: var(--warn); }
+input.num.bad { border-color: var(--err); }
+input[type=range] { width: 100%; margin: 3px 0 0; accent-color: var(--accent); }
+input[type=text].tf { width: 100%; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); color: var(--text); font: 13px ui-monospace, Consolas, monospace; }
+select { width: 100%; padding: 4px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); color: var(--text); font-size: 12.5px; }
+.chk { display: flex; align-items: center; gap: 7px; margin: 3px 0; cursor: pointer; user-select: none; }
+.chk .sw { width: 22px; height: 0; border-top: 3px solid; display: inline-block; }
+.chk .sw.dash { border-top-style: dashed; }
+.status { font: 12px ui-monospace, Consolas, monospace; margin-top: 4px; padding: 4px 6px; border-radius: 4px; background: var(--panel2); word-break: break-word; }
+.status.err { color: var(--err); }
+.formula { font: 12px ui-monospace, Consolas, monospace; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; line-height: 1.55; }
+.btn { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12.5px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.topbar .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.chart-wrap { position: relative; }
+.chart-wrap canvas { display: block; width: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin: 0 0 4px 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend b { font-weight: 400; }
+.legend i { width: 18px; height: 0; border-top: 2.5px solid; display: inline-block; }
+.legend i.dash { border-top-style: dashed; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font: 11.5px ui-monospace, Consolas, monospace; box-shadow: 0 2px 8px rgba(0,0,0,.15); white-space: nowrap; display: none; z-index: 5; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; }
+.metric .k { font-size: 11px; color: var(--muted); }
+.metric .v { font: 600 17px ui-monospace, Consolas, monospace; }
+.metric .n { font-size: 11px; color: var(--c-yn); font-family: ui-monospace, Consolas, monospace; }
+.banner { display: none; padding: 6px 10px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); margin-bottom: 8px; border: 1px solid var(--warn); }
+.info-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; }
+.exp { border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; margin-bottom: 7px; background: var(--panel2); }
+.exp.active { border-color: var(--accent); background: var(--accent-soft); }
+.exp .hd { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.exp .tag { font-size: 10.5px; border: 1px solid var(--line); border-radius: 10px; padding: 0 6px; color: var(--muted); white-space: nowrap; }
+.exp .body { display: none; margin-top: 5px; font-size: 12.3px; }
+.exp.active .body { display: block; }
+.exp ul { margin: 3px 0 4px; padding-left: 17px; }
+.exp li { margin: 2px 0; }
+.exp .lbl { font-weight: 600; font-size: 11.5px; color: var(--accent); margin-top: 4px; }
+.kbd { font: 11px ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
+svg.bd text { fill: var(--text); font: 12px system-ui, sans-serif; }
+svg.bd .box { fill: var(--panel2); stroke: var(--text); stroke-width: 1.2; }
+svg.bd .ln { stroke: var(--text); stroke-width: 1.2; fill: none; }
+svg.bd .ar { fill: var(--text); }
+@media (max-width: 1150px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+  aside, main { overflow: visible; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); }
+  aside.right { border-left: 0; border-top: 1px solid var(--line); }
+  .info-grid { grid-template-columns: 1fr; }
+  main { padding: 10px 16px 30px; }
 }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- ============ CONTROLS ============ -->
-  <div class="col side" id="side">
-    <h1>PID Control Explorer</h1>
+<!-- ================= LEFT: inputs ================= -->
+<aside class="left" id="left">
+  <h2>Process</h2>
+  <div class="ctl">
+    <div class="row"><label>G(s) =</label><span class="sub">Laplace form, e.g. 1/(1+s)^3</span></div>
+    <input type="text" class="tf" id="procTF" spellcheck="false" value="1/(1+s)">
+    <div class="status" id="procStatus"></div>
+  </div>
+  <div class="ctl">
+    <div class="row"><label>Preset</label></div>
+    <select id="procPreset">
+      <option value="">— choose a process —</option>
+      <option value="1/(1+s)|0.2">1/(1+s), L = 0.2 (default)</option>
+      <option value="1/(1+s)^2|0.1">1/(1+s)², L = 0.1</option>
+      <option value="1/(1+s)^3|0">1/(1+s)³, L = 0</option>
+      <option value="1/((1+s)*(1+0.2s)*(1+0.04s))|0">1/((1+s)(1+0.2s)(1+0.04s))</option>
+      <option value="1/(s*(1+s))|0">1/(s(1+s)) – integrating</option>
+      <option value="(1-0.5s)/(1+s)^2|0">(1−0.5s)/(1+s)² – non-minimum phase</option>
+      <option value="1/(1+0.2s+s^2)|0">1/(1+0.2s+s²) – lightly damped</option>
+      <option value="1/(1+s)|1">1/(1+s), L = 1 – delay dominant</option>
+    </select>
+  </div>
+  <div id="procDelay"></div>
 
-    <h2>Process</h2>
-    <div class="sel"><label for="ptype">Type</label>
-      <select id="ptype">
-        <option value="1">1st order</option>
-        <option value="2" selected>2nd order</option>
-        <option value="3">3rd order</option>
-        <option value="d">1st order + dead time</option>
-      </select></div>
-    <div id="procSliders"></div>
-    <div class="tf" id="tfProc"></div>
+  <h2>Controller</h2>
+  <div class="formula" id="ctlFormula">u = K<sub>s</sub>·r + G<sub>FB</sub>(s)·u<sub>r</sub> − G<sub>FB2</sub>(s)·y</div>
+  <div id="ctlSliders"></div>
 
-    <h2>Controller</h2>
-    <div class="toggles">
-      <label id="lbP"><input type="checkbox" id="enP" checked>P</label>
-      <label id="lbI"><input type="checkbox" id="enI" checked>I</label>
-      <label id="lbD"><input type="checkbox" id="enD" checked>D</label>
-    </div>
-    <div id="ctrlSliders"></div>
-    <div class="sel"><label for="dmode">D acts on</label>
-      <select id="dmode"><option value="meas" selected>measurement −y</option><option value="err">error r−y</option></select></div>
-    <div class="tf" id="tfCtrl"></div>
+  <h2>Signals</h2>
+  <div id="sigSliders"></div>
 
-    <h2>Signals</h2>
-    <div id="sigSliders"></div>
-    <div class="btns"><button id="newNoise">New noise realisation</button></div>
+  <h2>Actuator</h2>
+  <label class="chk"><input type="checkbox" id="actOn"> Actuator limits</label>
+  <div id="actSliders"></div>
+  <label class="chk"><input type="checkbox" id="naiveOn"> Compare with naive PID (same C(s), no anti-windup)</label>
 
-    <h2>Actuator &amp; anti-windup</h2>
-    <div class="chk"><label><input type="checkbox" id="lim"> Actuator limits</label></div>
-    <div id="actSliders"></div>
-    <div class="sel"><label for="aw">Anti-windup</label>
-      <select id="aw"><option value="none">none</option><option value="clamp">conditional integration (clamping)</option><option value="bc" selected>back-calculation</option></select></div>
-    <div id="awSliders"></div>
+  <h2>Display</h2>
+  <div class="sub" style="margin-bottom:4px">Reference r is always shown (dashed).</div>
+  <div id="dispChecks"></div>
+  <p class="sub" style="margin-top:12px">Tip: click into any number field and use the mouse wheel (<span class="kbd">Shift</span> = larger steps). Typed values may exceed slider limits.</p>
+</aside>
 
-    <h2>Display</h2>
-    <div class="chk">
-      <label><input type="checkbox" id="showPID" checked> P, I, D parts</label>
-      <label><input type="checkbox" id="showV" checked> unsaturated v</label>
-      <label><input type="checkbox" id="showYm" checked> noisy y<sub>m</sub></label>
-      <label><input type="checkbox" id="lockAx"> lock axes</label>
-    </div>
+<!-- ================= CENTER: plots ================= -->
+<main>
+  <div class="topbar">
+    <div><h1>General PID Explorer <span class="sub">— PID with the conditioning technique</span></h1>
+      <div class="sub" id="modeLine"></div></div>
     <div class="btns">
-      <button id="hold" class="primary">Hold trace for comparison</button>
-      <button id="clearHold">Clear held</button>
-      <button id="reset">Reset all</button>
+      <button class="btn" id="pinBtn" title="Keep the current y and u_r as grey ghost traces for comparison">Pin current response</button>
+      <button class="btn" id="unpinBtn">Clear pinned</button>
+      <button class="btn" id="resetBtn">Reset defaults</button>
     </div>
   </div>
-
-  <!-- ============ PLOTS ============ -->
-  <div class="col main">
-    <div class="ptitle">Reference r, process output y</div>
-    <div class="plotwrap top"><canvas id="cvY"></canvas></div>
-    <div class="ptitle">Controller output u</div>
-    <div class="plotwrap bot"><canvas id="cvU"></canvas></div>
+  <div class="banner" id="banner"></div>
+  <div class="card">
+    <div class="legend" id="legTop"></div>
+    <div class="chart-wrap"><canvas id="cTop" height="290"></canvas><div class="tip" id="tipTop"></div></div>
+  </div>
+  <div class="card">
+    <div class="legend" id="legMid"></div>
+    <div class="chart-wrap"><canvas id="cMid" height="250"></canvas><div class="tip" id="tipMid"></div></div>
+  </div>
+  <div class="card">
+    <h3>Performance <span class="sub" id="perfNote"></span></h3>
     <div class="metrics" id="metrics"></div>
-    <div class="notes" id="notes"></div>
   </div>
-
-  <!-- ============ EXPLANATIONS ============ -->
-  <div class="col info">
-    <h2>Guided experiments</h2>
-    <div id="scenList"></div>
-    <div id="scenText">Pick an experiment, then move the sliders to see what changes.</div>
-
-    <h2>The control actions</h2>
-    <div class="card P" id="cardP"><b>P — proportional: K<sub>p</sub>·e</b>
-      <ul><li class="plus">Immediate reaction to the current error; speeds up the response.</li>
-      <li class="minus">Alone it leaves a steady-state offset (for processes without integration).</li>
-      <li class="minus">Too high: overshoot, oscillation, instability; amplifies noise.</li></ul></div>
-    <div class="card I" id="cardI"><b>I — integral: K<sub>i</sub>·∫e dt</b>
-      <ul><li class="plus">Removes steady-state error for steps in reference and load disturbance.</li>
-      <li class="minus">Adds phase lag: slower, more overshoot, can destabilise.</li>
-      <li class="minus">Winds up when the actuator saturates → needs anti-windup.</li></ul></div>
-    <div class="card D" id="cardD"><b>D — derivative: K<sub>d</sub>·de/dt</b>
-      <ul><li class="plus">Predicts the error trend, adds damping, permits higher K<sub>p</sub>, K<sub>i</sub>.</li>
-      <li class="minus">Strongly amplifies high-frequency measurement noise.</li>
-      <li class="minus">Acting on the error it gives a “derivative kick” at reference steps.</li>
-      <li class="minus">Of little help with long dead time.</li></ul></div>
-    <div class="card F" id="cardF"><b>Filter 1/(T<sub>f</sub>s+1)</b>
-      <ul><li class="plus">In series with the whole controller: attenuates noise in u and makes D realisable.</li>
-      <li class="minus">Too large T<sub>f</sub> adds lag in the loop → less damping, eventually instability.</li></ul></div>
-    <div class="card W" id="cardW"><b>Actuator limits &amp; anti-windup</b>
-      <ul><li>Real actuators saturate: u = sat(v). While saturated the loop is effectively open.</li>
-      <li><i>Clamping</i>: stop integrating when saturated and the error would push further into the limit.</li>
-      <li><i>Back-calculation</i>: feed (u−v)/T<sub>t</sub> into the integrator so it tracks the limit; smaller T<sub>t</sub> = faster tracking.</li></ul></div>
+  <div class="info-grid">
+    <div class="card">
+      <h3>Controller structure (conditioning technique)</h3>
+      <svg class="bd" viewBox="0 0 640 200" width="100%" role="img" aria-label="Block diagram of the conditioning PID structure">
+        <defs><marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ar"/></marker></defs>
+        <text x="4" y="44">r</text>
+        <path class="ln" d="M16,40 H60" marker-end="url(#arw)"/>
+        <rect class="box" x="60" y="24" width="46" height="32" rx="4"/><text x="72" y="45">K<tspan font-size="9" dy="3">s</tspan></text>
+        <path class="ln" d="M106,40 H160" marker-end="url(#arw)"/>
+        <circle class="box" cx="170" cy="40" r="10"/><text x="164" y="44">Σ</text>
+        <path class="ln" d="M180,40 H230" marker-end="url(#arw)"/><text x="196" y="33">u</text>
+        <rect class="box" x="230" y="22" width="50" height="36" rx="4"/>
+        <path class="ln" d="M238,50 H248 L262,30 H272"/>
+        <path class="ln" d="M280,40 H360" marker-end="url(#arw)"/><text x="296" y="33">u<tspan font-size="9" dy="3">r</tspan></text>
+        <circle class="box" cx="370" cy="40" r="10"/><text x="364" y="44">+</text>
+        <text x="360" y="12">d</text><path class="ln" d="M370,14 V30" marker-end="url(#arw)"/>
+        <path class="ln" d="M380,40 H410" marker-end="url(#arw)"/>
+        <rect class="box" x="410" y="22" width="100" height="36" rx="4"/><text x="420" y="45">G(s)·e<tspan font-size="9" dy="-6">−Ls</tspan></text>
+        <path class="ln" d="M510,40 H560" marker-end="url(#arw)"/>
+        <circle class="box" cx="570" cy="40" r="10"/><text x="564" y="44">+</text>
+        <text x="563" y="12">n</text><path class="ln" d="M570,14 V30" marker-end="url(#arw)"/>
+        <path class="ln" d="M580,40 H630" marker-end="url(#arw)"/><text x="615" y="33">y</text>
+        <!-- GFB feedback of ur -->
+        <path class="ln" d="M320,40 V105 H260" marker-end="url(#arw)"/>
+        <rect class="box" x="190" y="88" width="70" height="34" rx="4"/><text x="200" y="110">G<tspan font-size="9" dy="3">FB</tspan><tspan dy="-3">(s)</tspan></text>
+        <path class="ln" d="M190,105 H170 V50" marker-end="url(#arw)"/><text x="174" y="68">+</text>
+        <!-- GFB2 feedback of y -->
+        <path class="ln" d="M605,40 V165 H260" marker-end="url(#arw)"/>
+        <rect class="box" x="190" y="148" width="70" height="34" rx="4"/><text x="198" y="170">G<tspan font-size="9" dy="3">FB2</tspan><tspan dy="-3">(s)</tspan></text>
+        <path class="ln" d="M190,165 H136 V6 H170 V30" marker-end="url(#arw)"/><text x="176" y="24">−</text>
+      </svg>
+      <div class="sub">Because G<sub>FB</sub> is fed by the <b>limited</b> signal u<sub>r</sub>, the controller states always stay consistent with what the actuator really delivers → inherent anti-windup. Without limits (u<sub>r</sub> = u) the structure is exactly equal to the linear controller C(s).</div>
+    </div>
+    <div class="card">
+      <h3>Computed transfer functions</h3>
+      <div class="formula" id="tfInfo" style="font-size:11.5px; overflow-x:auto"></div>
+    </div>
   </div>
+</main>
+
+<!-- ================= RIGHT: experiments ================= -->
+<aside class="right">
+  <h2>Guided experiments</h2>
+  <div class="sub" style="margin-bottom:8px">Click an experiment to load its settings. Every experiment starts from the default values, then changes only what is listed. The three PID terms all act on the error e = G<sub>FR</sub>·r − y (filtered reference minus output).</div>
+  <div id="expList"></div>
+</aside>
 </div>
-
 <script>
-(()=>{
-const $=id=>document.getElementById(id);
-const SL={};
-let renderPending=false;
-function schedule(){ if(!renderPending){renderPending=true;requestAnimationFrame(()=>{renderPending=false;render();});} }
-
-function slider(cont,id,label,min,max,step,val,unit=''){
-  const row=document.createElement('div');row.className='row';
-  row.innerHTML=`<label for="${id}">${label}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"><input type="number" id="${id}_n" step="${step}" value="${val}"><span class="unit">${unit}</span>`;
-  $(cont).appendChild(row);
-  const r=row.querySelector('input[type=range]'),n=row.querySelector('input[type=number]');
-  r.addEventListener('input',()=>{n.value=r.value;schedule();});
-  n.addEventListener('input',()=>{if(n.value!==''&&isFinite(+n.value)){r.value=n.value;schedule();}});
-  SL[id]={r,n,row};
+// ===== CORE (polynomials, parser, state space, controller, simulation) =====
+// Polynomials: arrays of coefficients in ASCENDING powers of s: p[0] + p[1]s + p[2]s^2 ...
+const P = {
+  trim(p, tol) {
+    const a = p.slice();
+    const mx = Math.max(1e-300, ...a.map(Math.abs));
+    const t = tol === undefined ? 0 : tol * mx;
+    while (a.length > 1 && Math.abs(a[a.length - 1]) <= t) a.pop();
+    return a;
+  },
+  add(a, b) { const n = Math.max(a.length, b.length), r = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) r[i] = (a[i] || 0) + (b[i] || 0); return r; },
+  sub(a, b) { return P.add(a, b.map(x => -x)); },
+  scale(a, k) { return a.map(x => x * k); },
+  mul(a, b) { const r = new Array(a.length + b.length - 1).fill(0);
+    for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) r[i + j] += a[i] * b[j]; return r; },
+  pow(a, n) { let r = [1]; for (let i = 0; i < n; i++) r = P.mul(r, a); return r; },
+  deg(a) { return P.trim(a).length - 1; },
+  isZero(a) { return a.every(x => x === 0); },
+  // Fujiwara bound on root magnitudes
+  rootBound(p) {
+    const a = P.trim(p, 1e-14); const m = a.length - 1; if (m < 1) return 0;
+    const an = a[m]; let b = 0;
+    for (let k = 1; k <= m; k++) {
+      let c = Math.abs(a[m - k] / an); if (k === m) c /= 2;
+      b = Math.max(b, Math.pow(c, 1 / k));
+    }
+    return 2 * b;
+  },
+  // remove common factors s (roots at the origin) of num & den
+  cancelS(num, den, tol = 1e-12) {
+    let n = num.slice(), d = den.slice();
+    const sc = Math.max(...d.map(Math.abs), 1e-300), sn = Math.max(...n.map(Math.abs), 1e-300);
+    while (d.length > 1 && n.length > 1 && Math.abs(d[0]) <= tol * sc && Math.abs(n[0]) <= tol * sn) { d.shift(); n.shift(); }
+    return { num: n, den: d };
+  },
+  fmt(p, v = 's') {
+    const a = P.trim(p); const terms = [];
+    for (let i = a.length - 1; i >= 0; i--) {
+      const c = a[i]; if (c === 0 && a.length > 1) continue;
+      const mag = Math.abs(c); const cs = fmtNum(mag);
+      let t = i === 0 ? cs : ((Math.abs(mag - 1) < 1e-12 ? '' : cs + '·') + v + (i > 1 ? '^' + i : ''));
+      terms.push({ neg: c < 0, t });
+    }
+    if (!terms.length) return '0';
+    return terms.map((x, k) => (k === 0 ? (x.neg ? '−' : '') : (x.neg ? ' − ' : ' + ')) + x.t).join('');
+  }
+};
+function fmtNum(x, d = 4) {
+  if (!isFinite(x)) return String(x);
+  if (x === 0) return '0';
+  const ax = Math.abs(x);
+  if (ax >= 1e5 || ax < 1e-3) return x.toExponential(d - 1).replace(/\.?0+e/, 'e');
+  return String(parseFloat(x.toPrecision(d)));
 }
-const V=id=>{const s=SL[id];const x=parseFloat(s.n.value);return isFinite(x)?x:+s.r.value;};
-const setV=(id,v)=>{SL[id].r.value=v;SL[id].n.value=v;};
 
-slider('procSliders','K','Gain K',0.1,5,0.05,1);
-slider('procSliders','T','Time const T',0.1,10,0.05,1,'s');
-slider('procSliders','L','Dead time L',0,5,0.05,1,'s');
-slider('ctrlSliders','Kp','K<sub>p</sub>',0,20,0.05,2);
-slider('ctrlSliders','Ki','K<sub>i</sub>',0,10,0.01,1,'1/s');
-slider('ctrlSliders','Kd','K<sub>d</sub>',0,10,0.01,0.5,'s');
-slider('ctrlSliders','Tf','Filter T<sub>f</sub>',0,2,0.005,0.05,'s');
-slider('sigSliders','ra','Ref. step',-2,2,0.05,1);
-slider('sigSliders','da','Load dist.',-1,1,0.01,0.3);
-slider('sigSliders','dtp','Dist. at',0,100,1,50,'%');
-slider('sigSliders','noise','Noise σ',0,0.2,0.001,0);
-slider('sigSliders','tsim','Sim. time',5,200,1,30,'s');
-slider('actSliders','umin','u<sub>min</sub>',-5,0,0.05,-1);
-slider('actSliders','umax','u<sub>max</sub>',0,10,0.05,2);
-slider('awSliders','Tt','Tracking T<sub>t</sub>',0.01,10,0.01,1,'s');
+// ---- Rational-function parser for process G(s) ----
+function parseTF(str) {
+  const src = str.replace(/\s+/g, '').replace(/·|×/g, '*').replace(/,/g, '.').replace(/\*\*/g, '^');
+  if (!src) throw new Error('empty expression');
+  const toks = []; let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (/[0-9.]/.test(c)) {
+      const m = src.slice(i).match(/^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/);
+      toks.push({ t: 'n', v: parseFloat(m[0]) }); i += m[0].length;
+    } else if (c === 's' || c === 'S') { toks.push({ t: 's' }); i++; }
+    else if ('+-*/^()'.includes(c)) { toks.push({ t: c }); i++; }
+    else throw new Error('unexpected character "' + c + '"');
+  }
+  let k = 0;
+  const peek = () => toks[k], next = () => toks[k++];
+  const R = {
+    c: v => ({ n: [v], d: [1] }),
+    add: (a, b) => ({ n: P.add(P.mul(a.n, b.d), P.mul(b.n, a.d)), d: P.mul(a.d, b.d) }),
+    sub: (a, b) => ({ n: P.sub(P.mul(a.n, b.d), P.mul(b.n, a.d)), d: P.mul(a.d, b.d) }),
+    mul: (a, b) => ({ n: P.mul(a.n, b.n), d: P.mul(a.d, b.d) }),
+    div: (a, b) => { if (P.isZero(P.trim(b.n, 1e-15))) throw new Error('division by zero'); return { n: P.mul(a.n, b.d), d: P.mul(a.d, b.n) }; },
+  };
+  function expr() {
+    let v = term();
+    while (peek() && (peek().t === '+' || peek().t === '-')) { const op = next().t; const w = term(); v = op === '+' ? R.add(v, w) : R.sub(v, w); }
+    return v;
+  }
+  function term() {
+    let v = unary();
+    for (;;) {
+      const p = peek(); if (!p) break;
+      if (p.t === '*') { next(); v = R.mul(v, unary()); }
+      else if (p.t === '/') { next(); v = R.div(v, unary()); }
+      else if (p.t === 'n' || p.t === 's' || p.t === '(') v = R.mul(v, power()); // implicit multiplication
+      else break;
+    }
+    return v;
+  }
+  function unary() {
+    const p = peek();
+    if (p && p.t === '-') { next(); const v = unary(); return { n: P.scale(v.n, -1), d: v.d }; }
+    if (p && p.t === '+') { next(); return unary(); }
+    return power();
+  }
+  function power() {
+    let b = primary();
+    if (peek() && peek().t === '^') {
+      next(); let sign = 1;
+      if (peek() && peek().t === '-') { next(); sign = -1; }
+      let e;
+      if (peek() && peek().t === '(') { next(); const q = next(); if (!q || q.t !== 'n') throw new Error('exponent must be an integer'); e = q.v; if (!peek() || next().t !== ')') throw new Error('missing )'); }
+      else { const q = next(); if (!q || q.t !== 'n') throw new Error('exponent must be an integer'); e = q.v; }
+      e *= sign;
+      if (!Number.isInteger(e) || Math.abs(e) > 20) throw new Error('exponent must be an integer (|n| ≤ 20)');
+      const base = e >= 0 ? b : R.div(R.c(1), b);
+      let r = R.c(1); for (let j = 0; j < Math.abs(e); j++) r = R.mul(r, base); b = r;
+    }
+    return b;
+  }
+  function primary() {
+    const p = next(); if (!p) throw new Error('unexpected end of expression');
+    if (p.t === 'n') return R.c(p.v);
+    if (p.t === 's') return { n: [0, 1], d: [1] };
+    if (p.t === '(') { const v = expr(); const q = next(); if (!q || q.t !== ')') throw new Error('missing )'); return v; }
+    throw new Error('unexpected "' + p.t + '"');
+  }
+  const v = expr();
+  if (k < toks.length) throw new Error('unexpected "' + toks[k].t + '"');
+  let num = P.trim(v.n, 1e-13), den = P.trim(v.d, 1e-13);
+  const cs = P.cancelS(num, den); num = cs.num; den = cs.den;
+  if (P.isZero(den)) throw new Error('zero denominator');
+  if (num.length > den.length) throw new Error('improper transfer function (deg num > deg den)');
+  const lead = den[den.length - 1];
+  return { num: P.scale(num, 1 / lead), den: P.scale(den, 1 / lead) };
+}
 
-const DEFAULTS={ptype:'2',K:1,T:1,L:1,Kp:2,Ki:1,Kd:0.5,Tf:0.05,enP:true,enI:true,enD:true,dmode:'meas',
-  ra:1,da:0.3,dtp:50,noise:0,tsim:30,lim:false,umin:-1,umax:2,aw:'bc',Tt:1};
-const SELECTS=['ptype','dmode','aw'], CHECKS=['enP','enI','enD','lim'];
-function apply(cfg){
-  const c=Object.assign({},DEFAULTS,cfg);
-  for(const k in c){ if(SL[k]) setV(k,c[k]); else if(SELECTS.includes(k)) $(k).value=c[k]; else if(CHECKS.includes(k)) $(k).checked=c[k]; }
+// ---- Linear algebra (small dense) ----
+function matMul(A, B) { const n = A.length, m = B[0].length, q = B.length; const C = [];
+  for (let i = 0; i < n; i++) { const r = new Array(m).fill(0); for (let k = 0; k < q; k++) { const a = A[i][k]; if (a) for (let j = 0; j < m; j++) r[j] += a * B[k][j]; } C.push(r); } return C; }
+function expm(M) {
+  const n = M.length; let nrm = 0;
+  for (const r of M) nrm = Math.max(nrm, r.reduce((s, x) => s + Math.abs(x), 0));
+  const sq = Math.max(0, Math.ceil(Math.log2(nrm || 1)) + 2);
+  const sc = 1 / Math.pow(2, sq);
+  const A = M.map(r => r.map(x => x * sc));
+  let E = A.map((r, i) => r.map((_, j) => (i === j ? 1 : 0)));
+  let T = E.map(r => r.slice());
+  for (let k = 1; k <= 18; k++) { T = matMul(T, A).map(r => r.map(x => x / k)); E = E.map((r, i) => r.map((x, j) => x + T[i][j])); }
+  for (let k = 0; k < sq; k++) E = matMul(E, E);
+  return E;
+}
+
+// ---- Transfer function -> discrete state space (exact ZOH + first-order-hold terms) ----
+// x(k+1) = Ad x(k) + Bd u(k) + G1 (u(k+1) - u(k))   (G1 = 0 -> zero-order hold)
+function discretize(A, B, dt) {
+  const m = A.length; const M = [];
+  for (let i = 0; i < m + 2; i++) M.push(new Array(m + 2).fill(0));
+  for (let i = 0; i < m; i++) { for (let j = 0; j < m; j++) M[i][j] = A[i][j] * dt; M[i][m] = B[i] * dt; }
+  M[m][m + 1] = dt;
+  const E = expm(M); const Ad = [], Bd = [], G1 = [];
+  for (let i = 0; i < m; i++) { Ad.push(E[i].slice(0, m)); Bd.push(E[i][m]); G1.push(E[i][m + 1] / dt); }
+  return { Ad, Bd, G1 };
+}
+function companion(a) { // a: monic-normalised denominator, ascending, length m+1
+  const m = a.length - 1; const A = [];
+  for (let i = 0; i < m; i++) A.push(new Array(m).fill(0));
+  for (let i = 0; i < m - 1; i++) A[i][i + 1] = 1;
+  for (let j = 0; j < m; j++) A[m - 1][j] = -a[j];
+  const B = new Array(m).fill(0); B[m - 1] = 1; return { A, B };
+}
+function tf2dss(num, den, dt) {
+  den = P.trim(den, 1e-14); num = P.trim(num, 1e-14);
+  const m = den.length - 1; const an = den[m];
+  const a = den.map(x => x / an), b = num.map(x => x / an);
+  while (b.length < m + 1) b.push(0);
+  if (b.length > m + 1) throw new Error('improper');
+  const D = b[m]; const c = []; for (let j = 0; j < m; j++) c.push(b[j] - D * a[j]);
+  if (m === 0) return { n: 0, Ad: [], Bd: [], G1: [], C: [], D, x: [] };
+  const { A, B } = companion(a); const dd = discretize(A, B, dt);
+  return { n: m, Ad: dd.Ad, Bd: dd.Bd, G1: dd.G1, C: c, D, x: new Array(m).fill(0) };
+}
+function ssOut(s, u) { let y = s.D * u; for (let i = 0; i < s.n; i++) y += s.C[i] * s.x[i]; return y; }
+function ssUpd(s, u0, u1) { if (!s.n) return; const du = u1 === undefined ? 0 : u1 - u0; const xn = new Array(s.n);
+  for (let i = 0; i < s.n; i++) { let v = s.Bd[i] * u0 + s.G1[i] * du; const r = s.Ad[i]; for (let j = 0; j < s.n; j++) v += r[j] * s.x[j]; xn[i] = v; } s.x = xn; }
+// GFB block with two exact discretizations:
+//  - saturated regime: x' = Ab x + Bb*ur  (ur held by the actuator)
+//  - linear regime   : ur = u = v + Cb x  =>  x' = (Ab+Bb*Cb) x + Bb*v,  v = Ks*r - GFB2*y
+//    Ab+Bb*Cb is the companion matrix of N(s) (zeros of 1-GFB), built directly from N to avoid cancellation.
+function gfbBlock(GFB, dt) {
+  const sat = tf2dss(GFB.num, GFB.den, dt);
+  if (!sat.n) return { sat, lin: null };
+  const m = sat.n; const Nn = GFB.N.slice(0, m + 1); const nm = Nn[m];
+  const { A, B } = companion(Nn.map(x => x / nm)); const dd = discretize(A, B, dt);
+  return { sat, lin: { n: m, Ad: dd.Ad, Bd: dd.Bd, G1: dd.G1, C: sat.C, D: 0, x: sat.x } };
+}
+
+// ---- Controller design (conditioning technique) ----
+function designController(c) {
+  const { Kp, Ki, Kd, n, nr, af } = c;
+  const Tf = Math.max(c.Tf, 1e-9), Tfr = Math.max(c.Tfr, 1e-9);
+  const numGF = P.pow([1, af * Tf], n), denGF = P.pow([1, Tf], n);
+  const numGFR = P.pow([1, af * Tfr], nr), denGFR = P.pow([1, Tfr], nr);
+  let mode, Ks, Dp, Np, Ceq, Pb, Db;
+  if (Kd !== 0) {
+    mode = 'PID'; Ks = Kd * Math.pow(af, n + nr) / Tf;
+    Dp = P.mul(P.mul([Ki, Kp, Kd], numGF), numGFR);
+    Np = P.scale(P.mul(P.mul(P.mul([0, 1], [1, Tf]), denGF), denGFR), Ks);
+    Ceq = { num: P.mul([Ki, Kp, Kd], numGF), den: P.mul(P.mul([0, 1], [1, Tf]), denGF) };
+    Pb = { num: P.scale(numGF, Kp), den: P.mul([1, Tf], denGF) };
+    Db = { num: P.mul([0, Kd], numGF), den: P.mul([1, Tf], denGF) };
+  } else if (Kp !== 0) {
+    mode = 'PI'; Ks = Kp * Math.pow(af, n + nr);
+    Dp = P.mul(P.mul([Ki, Kp], numGF), numGFR);
+    Np = P.scale(P.mul(P.mul([0, 1], denGF), denGFR), Ks);
+    Ceq = { num: P.mul([Ki, Kp], numGF), den: P.mul([0, 1], denGF) };
+    Pb = { num: P.scale(numGF, Kp), den: denGF.slice() }; Db = null;
+  } else if (Ki !== 0) {
+    mode = 'I'; Ks = Ki * Tf * Math.pow(af, n + nr + 1);
+    Dp = P.scale(P.mul(P.mul([1, af * Tf], numGF), numGFR), Ki);
+    Np = P.scale(P.mul(P.mul([0, 1], denGF), denGFR), Ks);
+    Ceq = { num: P.scale(P.mul([1, af * Tf], numGF), Ki), den: P.mul([0, 1], denGF) };
+    Pb = { num: P.scale(numGF, Ki * af * Tf), den: denGF.slice() }; Db = null;
+  } else {
+    return { mode: 'OFF', Ks: 0, GFB: { num: [0], den: [1] }, GFB2: { num: [0], den: [1] }, Ceq: { num: [0], den: [1] }, Pb: null, Db: null,
+      GF: { num: numGF, den: denGF }, GFR: { num: numGFR, den: denGFR }, Np: [0], strictFix: 0 };
+  }
+  // GFB = (Dp - Np)/Dp ; leading coefficients cancel analytically -> enforce strict properness
+  let num = P.sub(Dp, Np);
+  const lead = num[Dp.length - 1] || 0;
+  const strictFix = Math.abs(lead) / Math.max(1e-300, Math.abs(Dp[Dp.length - 1]));
+  num = num.slice(0, Dp.length - 1); if (!num.length) num = [0];
+  let GFB = P.cancelS(num, Dp, 1e-13);
+  const shift = Dp.length - GFB.den.length;
+  GFB.N = Np.slice(shift); // zeros of 1-GFB (= poles of the equivalent controller), same s-cancellation
+  if (GFB.num.length >= GFB.den.length) GFB.num = GFB.num.slice(0, GFB.den.length - 1);
+  if (!GFB.num.length) GFB.num = [0];
+  const GFB2 = { num: P.scale(denGFR, Ks), den: numGFR.slice() };
+  const ce = P.cancelS(Ceq.num, Ceq.den, 1e-13);
+  return { mode, Ks, GFB, GFB2, Ceq: ce, Pb, Db, GF: { num: numGF, den: denGF }, GFR: { num: numGFR, den: denGFR }, Np, strictFix };
+}
+
+// ---- Simulation ----
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function gaussGen(seed) { const r = mulberry32(seed); return () => { let u = 0, v = 0; while (u === 0) u = r(); v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }; }
+
+function simulate(cfg, opts = {}) {
+  const { proc, ctl, sig, act } = cfg;
+  const des = designController(ctl);
+  const T = sig.Tsim;
+  // integration step from the fastest relevant dynamics
+  const polys = [proc.den, des.GFB.N || [1], des.GFR.den, des.GFR.num, des.Ceq.den, des.GF.num];
+  let fast = 0; for (const p of polys) fast = Math.max(fast, P.rootBound(p));
+  let dt = T / (opts.nbase || 4000); if (fast > 0) dt = Math.min(dt, 0.5 / fast);
+  const MAXN = 60000; let limited = false;
+  if (T / dt > MAXN) { dt = T / MAXN; limited = true; }
+  const N = Math.round(T / dt) + 1;
+  const mk = tf => tf2dss(tf.num, tf.den, dt);
+  const sP = mk(proc), sR = mk(des.GFR), gb = gfbBlock(des.GFB, dt), sB = gb.sat, sB2 = mk(des.GFB2);
+  const sPb = des.Pb ? mk(des.Pb) : null, sDb = des.Db ? mk(des.Db) : null;
+  const naive = opts.naive; const sP2 = naive ? mk(proc) : null, sC = naive ? mk(des.Ceq) : null;
+  const L = Math.max(0, proc.delay); let Ld = Math.round(L / dt);
+  if (Ld === 0 && sP.D !== 0) Ld = 1;
+  const buf = new Float64Array(N + 2), buf2 = new Float64Array(N + 2);
+  // measurement noise: white Gaussian, held over Tn
+  const noiseLevel = opts.noNoise ? 0 : sig.noise;
+  const nz = new Float64Array(N + 1);
+  if (noiseLevel > 0) { const gn = gaussGen(12345); const Tn = Math.max(T / 2000, dt); let nextN = 0, nv = 0;
+    for (let k = 0; k <= N; k++) { if (k * dt >= nextN - 1e-12) { nv = noiseLevel * gn(); nextN += Tn; } nz[k] = nv; } }
+  const lo = act.on ? Math.min(act.lo, act.hi) : -Infinity, hi = act.on ? Math.max(act.lo, act.hi) : Infinity;
+  const F = () => new Float64Array(N);
+  const out = { t: F(), r: F(), rf: F(), y: F(), yt: F(), u: F(), ur: F(), d: F(), e: F(), P: F(), I: F(), D: F(), ksr: F(), gfb: F(), gfb2: F() };
+  if (naive) { out.yn = F(); out.un = F(); out.urn = F(); }
+  const r = sig.r, off = des.mode === 'OFF';
+  const pin = (b, k) => (k - Ld >= 0 ? b[k - Ld] : 0);
+  // initial values at k = 0
+  let yt = ssOut(sP, pin(buf, 0)); let ym = yt + nz[0];
+  let g2 = ssOut(sB2, ym); let v = des.Ks * r - g2;
+  let rf = ssOut(sR, r);
+  let y2 = 0, e2 = 0; if (naive) { y2 = ssOut(sP2, pin(buf2, 0)) + nz[0]; e2 = rf - y2; }
+  let e = rf - ym;
+  for (let k = 0; k < N; k++) {
+    const t = k * dt; const d = t >= sig.td - 1e-12 ? sig.d : 0;
+    const gfb = ssOut(sB, 0);
+    const u = off ? 0 : v + gfb;
+    const ur = Math.min(hi, Math.max(lo, u));
+    const linear = ur === u;
+    const pv = sPb ? ssOut(sPb, e) : 0, dv = sDb ? ssOut(sDb, e) : 0;
+    buf[k] = ur + d;
+    out.t[k] = t; out.r[k] = r; out.rf[k] = rf; out.y[k] = ym; out.yt[k] = yt; out.u[k] = u; out.ur[k] = ur; out.d[k] = d; out.e[k] = e;
+    out.P[k] = pv; out.D[k] = dv; out.I[k] = u - pv - dv; out.ksr[k] = des.Ks * r; out.gfb[k] = gfb; out.gfb2[k] = g2;
+    // --- advance one step ---
+    ssUpd(sP, pin(buf, k));                       // process input held (ZOH)
+    const ytN = ssOut(sP, pin(buf, k + 1 - (Ld === 0 ? 1 : 0)) * (sP.D !== 0 ? 1 : 0));
+    const ymN = ytN + nz[k + 1];
+    ssUpd(sR, r, r); const rfN = ssOut(sR, r);
+    ssUpd(sB2, ym, ymN); const g2N = ssOut(sB2, ymN); const vN = des.Ks * r - g2N;
+    if (gb.lin && linear) { gb.lin.x = sB.x; ssUpd(gb.lin, v, vN); sB.x = gb.lin.x; } else ssUpd(sB, ur);
+    const eN = rfN - ymN;
+    if (sPb) ssUpd(sPb, e, eN); if (sDb) ssUpd(sDb, e, eN);
+    if (naive) {
+      const un = off ? 0 : ssOut(sC, e2); const urn = Math.min(hi, Math.max(lo, un));
+      buf2[k] = urn + d; out.yn[k] = y2; out.un[k] = un; out.urn[k] = urn;
+      ssUpd(sP2, pin(buf2, k));
+      const y2N = ssOut(sP2, pin(buf2, k + 1 - (Ld === 0 ? 1 : 0)) * (sP2.D !== 0 ? 1 : 0)) + nz[k + 1];
+      const e2N = rfN - y2N; ssUpd(sC, e2, e2N); y2 = y2N; e2 = e2N;
+    }
+    yt = ytN; ym = ymN; rf = rfN; g2 = g2N; v = vN; e = eN;
+  }
+  out.N = N; out.dt = dt; out.limited = limited; out.des = des; out.Ld = Ld;
+  return out;
+}
+// ===== END CORE =====
+// ===================== UI / APPLICATION =====================
+const DEFAULTS = {
+  G: '1/(1+s)', L: 0.2,
+  Kp: 2.95, Ki: 2.63, Kd: 0.331, KpOn: true, KiOn: true, KdOn: true,
+  Tf: 0.1, n: 0, Tfr: 1, nr: 0, af: 0.1,
+  r: 1, d: 0.5, td: 5, noise: 0, Tsim: 10,
+  actOn: false, lo: 0, hi: 1.5, naive: false,
+  disp: { rf: true, y: true, yt: false, u: true, ur: true, d: false, e: false, P: false, I: false, D: false, ksr: false, gfb: false, gfb2: false, robust: false }
+};
+const S = JSON.parse(JSON.stringify(DEFAULTS));
+let procTF = parseTF(S.G);
+const ctrls = {};      // key -> slider control
+let pinned = null;     // ghost traces
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+function nice(v, sig = 4) { if (!isFinite(v)) return String(v); if (v === 0) return '0'; return String(parseFloat(v.toPrecision(sig))); }
+function parseNum(str) { const t = String(str).trim().replace(',', '.'); if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t)) return NaN; return parseFloat(t); }
+
+// ---------- slider + edit field widget ----------
+// spec: {key, label, sub, min, max, steps, type:'log'|'lin'|'int', step (lin wheel step), minVal (hard lower bound), onToggle}
+function makeSlider(parent, spec) {
+  const wrap = document.createElement('div'); wrap.className = 'ctl';
+  const row = document.createElement('div'); row.className = 'row';
+  const lab = document.createElement('label');
+  let tog = null;
+  if (spec.toggle) { tog = document.createElement('input'); tog.type = 'checkbox'; tog.title = 'Enable / disable this term'; lab.appendChild(tog); }
+  const ls = document.createElement('span'); ls.innerHTML = spec.label + (spec.sub ? ' <span class="sub">' + spec.sub + '</span>' : ''); lab.appendChild(ls);
+  const inp = document.createElement('input'); inp.className = 'num'; inp.type = 'text'; inp.inputMode = 'decimal'; inp.spellcheck = false;
+  row.appendChild(lab); row.appendChild(inp);
+  const rng = document.createElement('input'); rng.type = 'range'; rng.min = 0; rng.max = spec.steps; rng.step = 1;
+  wrap.appendChild(row); wrap.appendChild(rng); parent.appendChild(wrap);
+  const { min, max, steps, type } = spec;
+  const toPos = v => {
+    if (type === 'log') { if (!(v > 0)) return 0; return Math.round(steps * Math.log(v / min) / Math.log(max / min)); }
+    return Math.round((v - min) / (max - min) * steps);
+  };
+  const fromPos = p => {
+    if (type === 'log') return parseFloat((min * Math.pow(max / min, p / steps)).toPrecision(3));
+    const v = min + (max - min) * p / steps; return type === 'int' ? Math.round(v) : parseFloat(v.toPrecision(6));
+  };
+  const c = {
+    spec, inp, rng, tog,
+    set(v, fromUser) {
+      S[spec.key] = v;
+      inp.value = nice(v); inp.classList.remove('bad');
+      const p = toPos(v); rng.value = Math.max(0, Math.min(steps, p));
+      inp.classList.toggle('over', v < min || v > max);
+      if (fromUser) schedule();
+    }
+  };
+  rng.addEventListener('input', () => c.set(fromPos(+rng.value), true));
+  inp.addEventListener('input', () => {
+    const v = parseNum(inp.value);
+    if (isNaN(v) || (spec.minVal !== undefined && v < spec.minVal) || (type === 'int' && !Number.isInteger(v))) { inp.classList.add('bad'); return; }
+    inp.classList.remove('bad'); S[spec.key] = v; rng.value = Math.max(0, Math.min(steps, toPos(v)));
+    inp.classList.toggle('over', v < min || v > max); schedule();
+  });
+  inp.addEventListener('blur', () => { if (!inp.classList.contains('bad')) inp.value = nice(S[spec.key]); else c.set(S[spec.key]); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  const wst = { acc: 0, last: 0, lock: 0 };
+  const wheel = (e) => {
+    if (document.activeElement !== e.currentTarget) return; // only after clicking into the field
+    e.preventDefault();
+    // One step per wheel notch: high-resolution / smooth-scrolling mice and touchpads deliver a notch
+    // as several small events, so deltas are accumulated and the rest of a notch is swallowed.
+    // (With Shift held, browsers often report the wheel as horizontal deltaX.)
+    let dl = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    if (e.deltaMode === 1) dl *= 33; else if (e.deltaMode === 2) dl *= 400;
+    const now = performance.now();
+    if (now - wst.last > 250) wst.acc = 0;           // new gesture
+    wst.last = now;
+    if (now < wst.lock) return;                        // remainder of the notch just handled
+    wst.acc += dl;
+    if (Math.abs(wst.acc) < 50) return;               // wait until (about) half a notch has accumulated
+    const dir = wst.acc < 0 ? 1 : -1; const big = e.shiftKey;
+    wst.acc = 0; wst.lock = now + 60;
+    let v = S[spec.key];
+    if (type === 'log') {
+      if (!(v > 0)) v = dir > 0 ? min : 0;
+      else { v = v * Math.pow(10, dir * (big ? 0.1 : Math.log10(max / min) / steps)); v = parseFloat(v.toPrecision(4)); }
+    } else if (type === 'int') v = v + dir * (big ? 2 : 1);
+    else { v = v + dir * (big ? 10 : 1) * spec.step; v = parseFloat(v.toPrecision(10)); }
+    if (spec.minVal !== undefined) v = Math.max(spec.minVal, v);
+    if (spec.maxVal !== undefined) v = Math.min(spec.maxVal, v);
+    c.set(v, true);
+  };
+  inp.addEventListener('wheel', wheel, { passive: false });
+  rng.addEventListener('wheel', wheel, { passive: false });
+  if (tog) tog.addEventListener('change', () => { S[spec.key + 'On'] = tog.checked; inp.disabled = rng.disabled = !tog.checked; wrap.style.opacity = tog.checked ? 1 : 0.55; schedule(); });
+  ctrls[spec.key] = c;
+  return c;
+}
+function syncToggle(key) { const c = ctrls[key]; if (c && c.tog) { c.tog.checked = S[key + 'On']; c.inp.disabled = c.rng.disabled = !c.tog.checked; c.inp.parentNode.parentNode.style.opacity = c.tog.checked ? 1 : 0.55; } }
+
+// ---------- build controls ----------
+const LOG = { min: 0.01, max: 100, steps: 400, type: 'log', minVal: 0 };
+makeSlider($('procDelay'), { key: 'L', label: 'Time delay L', sub: '[s]', min: 0, max: 5, steps: 500, type: 'lin', step: 0.01, minVal: 0 });
+const cs = $('ctlSliders');
+makeSlider(cs, Object.assign({ key: 'Kp', label: 'K<sub>p</sub>', sub: 'proportional', toggle: true }, LOG));
+makeSlider(cs, Object.assign({ key: 'Ki', label: 'K<sub>i</sub>', sub: 'integral', toggle: true }, LOG));
+makeSlider(cs, Object.assign({ key: 'Kd', label: 'K<sub>d</sub>', sub: 'derivative', toggle: true }, LOG));
+makeSlider(cs, Object.assign({ key: 'Tf', label: 'T<sub>f</sub>', sub: 'controller filter [s]', minVal: 1e-6 }, LOG));
+makeSlider(cs, { key: 'n', label: 'n', sub: 'controller filter order', min: 0, max: 2, steps: 2, type: 'int', minVal: 0, maxVal: 6 });
+makeSlider(cs, Object.assign({ key: 'Tfr', label: 'T<sub>fr</sub>', sub: 'reference filter [s]', minVal: 1e-6 }, LOG));
+makeSlider(cs, { key: 'nr', label: 'n<sub>r</sub>', sub: 'reference filter order', min: 0, max: 2, steps: 2, type: 'int', minVal: 0, maxVal: 6 });
+makeSlider(cs, Object.assign({ key: 'af', label: 'a<sub>f</sub>', sub: 'filter factor', minVal: 1e-6 }, LOG));
+const ss = $('sigSliders');
+makeSlider(ss, { key: 'r', label: 'Reference step', sub: 'at t = 0', min: -5, max: 5, steps: 1000, type: 'lin', step: 0.01 });
+makeSlider(ss, { key: 'd', label: 'Load disturbance', sub: 'at process input', min: -2, max: 2, steps: 400, type: 'lin', step: 0.01 });
+makeSlider(ss, { key: 'td', label: 'Disturbance time', sub: '[s]', min: 0, max: 100, steps: 1000, type: 'lin', step: 0.1, minVal: 0 });
+makeSlider(ss, { key: 'noise', label: 'Noise level', sub: 'std. dev. of y noise', min: 0, max: 0.1, steps: 1000, type: 'lin', step: 0.001, minVal: 0 });
+makeSlider(ss, { key: 'Tsim', label: 'Simulation time', sub: '[s]', min: 1, max: 1000, steps: 300, type: 'log', minVal: 0.01 });
+const as = $('actSliders');
+makeSlider(as, { key: 'lo', label: 'Lower limit', sub: 'u<sub>min</sub>', min: -10, max: 10, steps: 2000, type: 'lin', step: 0.01 });
+makeSlider(as, { key: 'hi', label: 'Upper limit', sub: 'u<sub>max</sub>', min: -10, max: 10, steps: 2000, type: 'lin', step: 0.01 });
+$('actOn').addEventListener('change', e => { S.actOn = e.target.checked; $('actSliders').style.opacity = S.actOn ? 1 : 0.5; schedule(); });
+$('naiveOn').addEventListener('change', e => { S.naive = e.target.checked; schedule(); });
+
+// ---------- signals ----------
+const SIG = {
+  r:   { lab: 'Reference r', chart: 'top', dash: [6, 4], always: true },
+  rf:  { lab: 'Filtered reference r<sub>f</sub> = G<sub>FR</sub>·r', chart: 'top' },
+  y:   { lab: 'Process output y (measured)', chart: 'top' },
+  yt:  { lab: 'Noise-free output', chart: 'top' },
+  yn:  { lab: 'y – naive PID', chart: 'top', dash: [5, 3], naive: true },
+  u:   { lab: 'Unlimited controller output u', chart: 'mid' },
+  ur:  { lab: 'Limited controller output u<sub>r</sub>', chart: 'mid' },
+  d:   { lab: 'Load disturbance d', chart: 'mid', dash: [2, 3] },
+  e:   { lab: 'Control error e = r<sub>f</sub> − y', chart: 'mid' },
+  P:   { lab: 'P-term (lin. equivalent)', chart: 'mid' },
+  I:   { lab: 'I-term = u − P − D', chart: 'mid' },
+  D:   { lab: 'D-term (lin. equivalent)', chart: 'mid' },
+  ksr: { lab: 'K<sub>s</sub>·r', chart: 'mid', dash: [8, 3, 2, 3] },
+  gfb: { lab: 'G<sub>FB</sub>·u<sub>r</sub>', chart: 'mid' },
+  gfb2:{ lab: 'G<sub>FB2</sub>·y', chart: 'mid' },
+  un:  { lab: 'u – naive PID', chart: 'mid', dash: [5, 3], naive: true },
+  urn: { lab: 'u<sub>r</sub> – naive PID', chart: 'mid', dash: [2, 2], naive: true },
+};
+const dc = $('dispChecks');
+for (const k of ['rf', 'y', 'yt', 'u', 'ur', 'd', 'e', 'P', 'I', 'D', 'ksr', 'gfb', 'gfb2']) {
+  const l = document.createElement('label'); l.className = 'chk';
+  l.innerHTML = `<input type="checkbox" data-k="${k}"><span class="sw${SIG[k].dash ? ' dash' : ''}" style="border-color:var(--c-${k})"></span><span>${SIG[k].lab}</span>`;
+  dc.appendChild(l);
+}
+{ const l = document.createElement('label'); l.className = 'chk'; l.style.marginTop = '8px';
+  l.innerHTML = '<input type="checkbox" data-k="robust"><span>Robust u-axis scaling (ignore short spikes such as the reference kick)</span>'; dc.appendChild(l); }
+dc.addEventListener('change', e => { const k = e.target.dataset.k; if (k) { S.disp[k] = e.target.checked; draw(); } });
+
+// ---------- process input ----------
+let procTimer = null;
+function applyProc(str) {
+  const st = $('procStatus');
+  try {
+    const tf = parseTF(str);
+    procTF = tf; S.G = str; st.classList.remove('err');
+    st.textContent = 'G(s) = (' + P.fmt(tf.num) + ') / (' + P.fmt(tf.den) + ')';
+    schedule();
+  } catch (err) { st.classList.add('err'); st.textContent = 'Error: ' + err.message; }
+}
+$('procTF').addEventListener('input', e => { clearTimeout(procTimer); procTimer = setTimeout(() => applyProc(e.target.value), 250); });
+$('procTF').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(procTimer); applyProc(e.target.value); } });
+$('procPreset').addEventListener('change', e => {
+  if (!e.target.value) return; const [g, l] = e.target.value.split('|');
+  $('procTF').value = g; ctrls.L.set(parseFloat(l)); applyProc(g); e.target.value = '';
+});
+
+// ---------- apply full state to the UI ----------
+function applyState(st) {
+  Object.assign(S, JSON.parse(JSON.stringify(st)));
+  for (const k in ctrls) ctrls[k].set(S[k]);
+  ['Kp', 'Ki', 'Kd'].forEach(syncToggle);
+  $('actOn').checked = S.actOn; $('actSliders').style.opacity = S.actOn ? 1 : 0.5;
+  $('naiveOn').checked = S.naive;
+  dc.querySelectorAll('input[data-k]').forEach(i => { i.checked = !!S.disp[i.dataset.k]; });
+  $('procTF').value = S.G; applyProc(S.G);
   schedule();
 }
-document.querySelectorAll('select, .side input[type=checkbox]').forEach(el=>el.addEventListener('change',schedule));
 
-/* ---------- seeded Gaussian noise ---------- */
-let seed=12345, noiseBuf=null, noiseSeed=null;
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function getNoise(n){
-  if(noiseBuf&&noiseBuf.length===n&&noiseSeed===seed) return noiseBuf;
-  const rnd=mulberry32(seed),b=new Float64Array(n);
-  for(let i=0;i<n;i+=2){const u1=Math.max(rnd(),1e-12),u2=rnd(),m=Math.sqrt(-2*Math.log(u1));b[i]=m*Math.cos(2*Math.PI*u2);if(i+1<n)b[i+1]=m*Math.sin(2*Math.PI*u2);}
-  noiseBuf=b;noiseSeed=seed;return b;
+// ---------- simulation driver ----------
+let sim = null, simClean = null, pending = false;
+function schedule() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; run(); }); } }
+function cfg() {
+  return {
+    proc: { num: procTF.num, den: procTF.den, delay: Math.max(0, S.L) },
+    ctl: { Kp: S.KpOn ? S.Kp : 0, Ki: S.KiOn ? S.Ki : 0, Kd: S.KdOn ? S.Kd : 0, Tf: S.Tf, n: Math.round(S.n), Tfr: S.Tfr, nr: Math.round(S.nr), af: S.af },
+    sig: { r: S.r, d: S.d, td: S.td, noise: S.noise, Tsim: Math.max(0.01, S.Tsim) },
+    act: { on: S.actOn, lo: S.lo, hi: S.hi }
+  };
 }
-$('newNoise').onclick=()=>{seed=(seed*1103515245+12345)>>>0;schedule();};
-
-/* ---------- parameters ---------- */
-function params(){
-  const p={ptype:$('ptype').value};
-  for(const k in SL) p[k]=V(k);
-  p.enP=$('enP').checked;p.enI=$('enI').checked;p.enD=$('enD').checked;
-  p.dmode=$('dmode').value;p.lim=$('lim').checked;p.aw=$('aw').value;
-  p.T=Math.max(p.T,1e-3);p.Tf=Math.max(p.Tf,0);p.Tt=Math.max(p.Tt,1e-3);p.tsim=Math.max(p.tsim,1);
-  if(p.umin>p.umax){const t=p.umin;p.umin=p.umax;p.umax=t;}
-  p.tr=0.05*p.tsim>1?1:0.05*p.tsim;            // reference step time
-  p.td=p.dtp/100*p.tsim;                        // disturbance time
-  p.kp=p.enP?p.Kp:0;p.ki=p.enI?p.Ki:0;p.kd=p.enD?p.Kd:0;
-  return p;
+function run() {
+  const c = cfg();
+  try {
+    sim = simulate(c, { naive: S.naive });
+    simClean = S.noise > 0 ? simulate(c, { noNoise: true, naive: S.naive }) : sim;
+  } catch (err) { $('banner').style.display = 'block'; $('banner').textContent = 'Simulation error: ' + err.message; return; }
+  const msgs = [];
+  let unstable = false; for (let k = 0; k < sim.N; k++) if (!isFinite(sim.y[k]) || Math.abs(sim.y[k]) > 1e6) { unstable = true; break; }
+  if (unstable) msgs.push('The closed loop appears to be unstable (output grows without bound).');
+  if (sim.limited) msgs.push('Very fast dynamics: the integration step was limited (dt = ' + nice(sim.dt, 3) + ' s); results may be slightly inaccurate.');
+  if (c.ctl.Ki === 0 && sim.des.mode !== 'OFF') msgs.push('K<sub>i</sub> = 0: no integral action – expect a steady-state error.');
+  if (sim.des.mode === 'OFF') msgs.push('All controller gains are zero – open loop.');
+  if (c.ctl.Kd !== 0 && c.ctl.Kp === 0 && c.ctl.Ki === 0) msgs.push('Pure D-controller: G<sub>FB</sub> contains an integrator; behaviour under saturation is not meaningful.');
+  if (S.af >= 1 && (c.ctl.n > 0 || c.ctl.nr > 0)) msgs.push('a<sub>f</sub> ≥ 1: the filters G<sub>F</sub>, G<sub>FR</sub> become lead filters (they amplify high frequencies).');
+  const b = $('banner'); b.style.display = msgs.length ? 'block' : 'none'; b.innerHTML = msgs.join('<br>');
+  updateInfo(c); updateMetrics(c); draw();
 }
 
-/* ---------- simulation ---------- */
-const N=6000;
-function simulate(p){
-  const dt=p.tsim/N, n=p.ptype==='d'?1:+p.ptype;
-  const x=new Float64Array(n), a=Math.exp(-dt/p.T);
-  const nd=p.ptype==='d'?Math.round(p.L/dt):0, buf=new Float64Array(Math.max(nd,1));let bi=0;
-  const af=p.Tf>0?Math.exp(-dt/p.Tf):0;
-  const noise=getNoise(N+1);
-  const S={t:new Float64Array(N+1),r:new Float64Array(N+1),y:new Float64Array(N+1),ym:new Float64Array(N+1),
-    u:new Float64Array(N+1),v:new Float64Array(N+1),P:new Float64Array(N+1),I:new Float64Array(N+1),D:new Float64Array(N+1),sat:new Uint8Array(N+1),dt};
-  let rf=0,yf=0,Ii=0;
-  const BIG=1e6;
-  for(let k=0;k<=N;k++){
-    const t=k*dt, r=t>=p.tr?p.ra:0, y=p.K*x[n-1], ym=y+p.noise*noise[k];
-    // series filter 1/(Tf s+1) applied to r and y_m (equivalent to filtering all controller terms)
-    let rfn,yfn;
-    if(k===0){rfn=r;yfn=ym;}
-    else if(p.Tf>0){rfn=af*rf+(1-af)*r;yfn=af*yf+(1-af)*ym;}
-    else{rfn=r;yfn=ym;}
-    const drf=k===0?0:(rfn-rf)/dt, dyf=k===0?0:(yfn-yf)/dt;
-    rf=rfn;yf=yfn;
-    const e=rf-yf;
-    const P=p.kp*e;
-    const D=p.kd*(p.dmode==='err'?(drf-dyf):-dyf);
-    if(p.ki===0) Ii=0;
-    let v=P+Ii+D; if(!isFinite(v)) v=0;
-    v=Math.max(-BIG,Math.min(BIG,v));
-    let u=v, sat=0;
-    if(p.lim){ if(v>p.umax){u=p.umax;sat=1;} else if(v<p.umin){u=p.umin;sat=1;} }
-    S.t[k]=t;S.r[k]=r;S.y[k]=y;S.ym[k]=ym;S.u[k]=u;S.v[k]=v;S.P[k]=P;S.I[k]=Ii;S.D[k]=D;S.sat[k]=sat;
-    // integrator update (with anti-windup)
-    if(p.ki!==0){
-      if(p.lim&&p.aw==='clamp'){ if(!(sat&&((v>p.umax&&e>0)||(v<p.umin&&e<0)))) Ii+=p.ki*e*dt; }
-      else if(p.lim&&p.aw==='bc'){ Ii+=(p.ki*e+(u-v)/p.Tt)*dt; }
-      else Ii+=p.ki*e*dt;
-      Ii=Math.max(-BIG,Math.min(BIG,Ii));
+// ---------- info panel ----------
+function tfStr(tf) { return '(' + P.fmt(tf.num) + ') / (' + P.fmt(tf.den) + ')'; }
+function updateInfo(c) {
+  const d = sim.des; const k = c.ctl;
+  const modeTxt = { PID: 'PID case (K<sub>d</sub> ≠ 0)', PI: 'PI / P case (K<sub>d</sub> = 0, K<sub>p</sub> ≠ 0)', I: 'I-only case (K<sub>p</sub> = K<sub>d</sub> = 0)', OFF: 'controller off' }[d.mode];
+  const ksTxt = { PID: 'K<sub>s</sub> = K<sub>d</sub>·a<sub>f</sub><sup>n+n<sub>r</sub></sup>/T<sub>f</sub>', PI: 'K<sub>s</sub> = K<sub>p</sub>·a<sub>f</sub><sup>n+n<sub>r</sub></sup>', I: 'K<sub>s</sub> = K<sub>i</sub>·T<sub>f</sub>·a<sub>f</sub><sup>n+n<sub>r</sub>+1</sup>', OFF: 'K<sub>s</sub> = 0' }[d.mode];
+  const ceqTxt = { PID: 'C(s) = (K<sub>i</sub> + K<sub>p</sub>s + K<sub>d</sub>s²)/(s(1+sT<sub>f</sub>))·G<sub>F</sub>', PI: 'C(s) = (K<sub>i</sub> + K<sub>p</sub>s)/s·G<sub>F</sub>', I: 'C(s) = K<sub>i</sub>(1+s·a<sub>f</sub>T<sub>f</sub>)/s·G<sub>F</sub>', OFF: 'C(s) = 0' }[d.mode];
+  $('modeLine').innerHTML = modeTxt + ' &nbsp;·&nbsp; ' + ksTxt + ' = <b>' + nice(d.Ks, 4) + '</b>';
+  const fix = d.strictFix > 0 ? `<br><span style="color:var(--muted)">Strict-properness enforced: removed leading numerator residual ${d.strictFix.toExponential(1)} (relative).</span>` : '';
+  $('tfInfo').innerHTML =
+    `<b>${modeTxt}</b><br>${ksTxt} = ${nice(d.Ks, 5)}<br><br>` +
+    `G<sub>F</sub>(s) = (1+s·a<sub>f</sub>T<sub>f</sub>)<sup>n</sup>/(1+sT<sub>f</sub>)<sup>n</sup> = ${tfStr(d.GF)}<br>` +
+    `G<sub>FR</sub>(s) = ${tfStr(d.GFR)}<br><br>` +
+    `G<sub>FB</sub>(s) = ${tfStr(d.GFB)}<br>` +
+    `G<sub>FB2</sub>(s) = K<sub>s</sub>/G<sub>FR</sub> = ${tfStr(d.GFB2)}${fix}<br><br>` +
+    `Linear equivalent: u = C(s)·(G<sub>FR</sub>·r − y),<br>${ceqTxt}<br>C(s) = ${tfStr(d.Ceq)}<br><br>` +
+    `<span style="color:var(--muted)">Simulation: dt = ${nice(sim.dt, 3)} s, ${sim.N} steps; exact (matrix-exponential) discretisation, conditioning loop integrated exactly in linear and saturated regimes.</span>`;
+}
+
+// ---------- performance ----------
+function metricsOf(o, c, ylab) {
+  const R = c.sig.r, N = o.N, dt = o.dt;
+  const iTd = Math.max(0, Math.min(N, Math.ceil((c.sig.td - 1e-12) / dt)));
+  const y = o[ylab];
+  const m = {};
+  if (R !== 0 && iTd > 2) {
+    let pk = -Infinity, ipk = 0, i10 = -1, i90 = -1, last = -1;
+    for (let k = 0; k < iTd; k++) {
+      const z = y[k] / R;
+      if (z > pk) { pk = z; ipk = k; }
+      if (i10 < 0 && z >= 0.1) i10 = k; if (i90 < 0 && z >= 0.9) i90 = k;
+      if (Math.abs(z - 1) > 0.02) last = k;
     }
-    // process: input = u + load disturbance, optional dead time, cascade of first-order lags
-    let up=u+(t>=p.td&&p.da!==0?p.da:0);
-    if(nd>0){const o=buf[bi];buf[bi]=up;bi=(bi+1)%nd;up=o;}
-    let inp=up;
-    for(let i=0;i<n;i++){x[i]=a*x[i]+(1-a)*inp; x[i]=Math.max(-BIG,Math.min(BIG,x[i])); inp=x[i];}
+    m.os = Math.max(0, pk - 1) * 100; m.tp = pk > 1 ? ipk * dt : NaN;
+    m.tr = i10 >= 0 && i90 >= 0 ? (i90 - i10) * dt : NaN;
+    m.ts = last < iTd - 1 ? (last + 1) * dt : NaN;
+    let iae = 0; for (let k = 0; k < iTd; k++) iae += Math.abs(R - y[k]) * dt; m.iaeR = iae;
   }
-  return S;
-}
-
-/* ---------- metrics ---------- */
-function metrics(S,p){
-  const dt=S.dt, ra=p.ra;
-  const i0=Math.ceil(p.tr/dt), i1=(p.da!==0&&p.td>p.tr)?Math.min(N,Math.floor(p.td/dt)):N;
-  const m={};
-  let ymax=-Infinity,ymin=Infinity;
-  for(let k=i0;k<=i1;k++){ymax=Math.max(ymax,S.y[k]);ymin=Math.min(ymin,S.y[k]);}
-  m.os=ra!==0?Math.max(0,(ra>0?ymax-ra:ra-ymin)/Math.abs(ra)*100):NaN;
-  let t10=NaN,t90=NaN;
-  if(ra!==0) for(let k=i0;k<=i1;k++){const f=S.y[k]/ra;if(isNaN(t10)&&f>=0.1)t10=S.t[k];if(isNaN(t90)&&f>=0.9){t90=S.t[k];break;}}
-  m.tr=t90-t10;
-  // settling (2 % band)
-  let last=-1; const band=0.02*Math.abs(ra);
-  if(ra!==0){for(let k=i0;k<=i1;k++) if(Math.abs(S.y[k]-ra)>band) last=k;}
-  m.ts=ra===0?NaN:(last===i1?Infinity:(last<0?0:S.t[last+1]-p.tr));
-  const avg=(a,b)=>{let s=0,c=0;for(let k=Math.max(0,a);k<=b;k++){s+=S.y[k];c++;}return s/c;};
-  const w=Math.max(5,Math.floor((i1-i0)*0.05));
-  m.e1=ra-avg(i1-w,i1);
-  m.e2=ra-avg(N-Math.floor(N*0.03),N);
-  let iae=0,umax=0,tv=0,satT=0;
-  for(let k=0;k<=N;k++){iae+=Math.abs(S.r[k]-S.y[k])*dt;umax=Math.max(umax,Math.abs(S.u[k]));if(k)tv+=Math.abs(S.u[k]-S.u[k-1]);satT+=S.sat[k]*dt;}
-  m.iae=iae;m.umax=umax;m.tv=tv;m.satT=satT;
-  // divergence check: amplitude of last 20 % vs previous
-  let a1=0,a2=0;const q=Math.floor(N*0.2);
-  for(let k=N-2*q;k<N-q;k++)a1=Math.max(a1,Math.abs(S.y[k]-ra));
-  for(let k=N-q;k<=N;k++)a2=Math.max(a2,Math.abs(S.y[k]-ra));
-  m.unstable=!isFinite(ymax)||Math.abs(ymax)>1e3||(a2>a1*1.05&&a2>0.2*Math.max(Math.abs(ra),0.1));
-  m.osc=!m.unstable&&a2>0.05*Math.max(Math.abs(ra),0.1)&&a2>0.6*a1;
+  if (iTd < N - 1) {
+    let iae = 0, md = 0; for (let k = iTd; k < N; k++) { const e = R - y[k]; iae += Math.abs(e) * dt; md = Math.max(md, Math.abs(e)); }
+    m.iaeD = iae; m.maxDev = md;
+  }
+  m.ess = R - y[N - 1];
   return m;
 }
-const f=(x,d=2,u='')=>!isFinite(x)?(x===Infinity?'&gt; window':'—'):x.toFixed(d)+u;
-
-/* ---------- plotting ---------- */
-const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-function ticks(lo,hi,n){const span=hi-lo||1,s0=span/n,mag=10**Math.floor(Math.log10(s0)),fr=s0/mag,st=(fr<1.5?1:fr<3?2:fr<7?5:10)*mag;
-  const t=[];for(let v=Math.ceil(lo/st)*st;v<=hi+st*1e-9;v+=st)t.push(Math.abs(v)<st*1e-9?0:v);return{t,st};}
-function fmtTick(v,st){const d=Math.max(0,-Math.floor(Math.log10(st)+1e-9));return Math.abs(v)>=1e4?v.toExponential(1):v.toFixed(Math.min(d,4));}
-function autoRange(list,inc=[]){let lo=Infinity,hi=-Infinity;
-  for(const a of list){for(let k=0;k<a.length;k++){const v=a[k];if(isFinite(v)){if(v<lo)lo=v;if(v>hi)hi=v;}}}
-  for(const v of inc){lo=Math.min(lo,v);hi=Math.max(hi,v);}
-  if(!isFinite(lo)){lo=-1;hi=1;}
-  if(hi-lo<1e-6){lo-=0.5;hi+=0.5;}
-  const pad=(hi-lo)*0.06;return[lo-pad,hi+pad];}
-function drawPlot(cv,o){
-  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
-  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
-  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
-  const L=58,R=12,T=8,B=o.xlabel?32:22,pw=W-L-R,ph=H-T-B;if(pw<20||ph<20)return;
-  const[x0,x1]=o.xr,[y0,y1]=o.yr;
-  const X=v=>L+(v-x0)/(x1-x0)*pw, Y=v=>T+(1-(v-y0)/(y1-y0))*ph;
-  c.font='11px system-ui,sans-serif';c.lineWidth=1;
-  const xt=ticks(x0,x1,8),yt=ticks(y0,y1,6);
-  c.strokeStyle=css('--grid');c.beginPath();
-  for(const v of xt.t){c.moveTo(Math.round(X(v))+.5,T);c.lineTo(Math.round(X(v))+.5,T+ph);}
-  for(const v of yt.t){c.moveTo(L,Math.round(Y(v))+.5);c.lineTo(L+pw,Math.round(Y(v))+.5);}
-  c.stroke();
-  c.fillStyle=css('--muted');c.textAlign='center';c.textBaseline='top';
-  for(const v of xt.t)c.fillText(fmtTick(v,xt.st),X(v),T+ph+4);
-  c.textAlign='right';c.textBaseline='middle';
-  for(const v of yt.t)c.fillText(fmtTick(v,yt.st),L-6,Y(v));
-  if(o.xlabel){c.textAlign='center';c.textBaseline='bottom';c.fillText(o.xlabel,L+pw/2,H-1);}
-  c.strokeStyle=css('--line');c.strokeRect(L+.5,T+.5,pw,ph);
-  c.save();c.beginPath();c.rect(L,T,pw,ph);c.clip();
-  if(y0<0&&y1>0){c.strokeStyle=css('--muted');c.globalAlpha=.35;c.beginPath();c.moveTo(L,Y(0));c.lineTo(L+pw,Y(0));c.stroke();c.globalAlpha=1;}
-  for(const h of o.hlines||[]){c.strokeStyle=h.color;c.setLineDash([6,4]);c.lineWidth=1.2;c.beginPath();c.moveTo(L,Y(h.v));c.lineTo(L+pw,Y(h.v));c.stroke();c.setLineDash([]);}
-  for(const vl of o.vlines||[]){c.strokeStyle=vl.color;c.setLineDash([2,3]);c.lineWidth=1;c.beginPath();c.moveTo(X(vl.v),T);c.lineTo(X(vl.v),T+ph);c.stroke();c.setLineDash([]);
-    c.fillStyle=vl.color;c.textAlign='left';c.textBaseline='bottom';c.fillText(vl.label,X(vl.v)+3,T+ph-3);}
-  const clampY=v=>Math.max(-1e5,Math.min(1e5,Y(v)));
-  for(const s of o.series){
-    c.strokeStyle=s.color;c.lineWidth=s.w||1.6;c.globalAlpha=s.alpha??1;c.setLineDash(s.dash||[]);c.lineJoin='round';
-    c.beginPath();const t=s.t||o.t,d=s.d;
-    for(let k=0;k<d.length;k++){const px=X(t[k]),py=clampY(d[k]);k?c.lineTo(px,py):c.moveTo(px,py);}
-    c.stroke();c.globalAlpha=1;c.setLineDash([]);
+function updateMetrics(c) {
+  const mc = metricsOf(simClean, c, 'yt');
+  const mn = S.naive ? metricsOf(simClean, c, 'yn') : null;
+  const o = sim; let umax = -Infinity, umin = Infinity, urmax = -Infinity, urmin = Infinity, tv = 0, sat = 0, rms = 0;
+  for (let k = 0; k < o.N; k++) {
+    umax = Math.max(umax, o.u[k]); umin = Math.min(umin, o.u[k]); urmax = Math.max(urmax, o.ur[k]); urmin = Math.min(urmin, o.ur[k]);
+    if (k) tv += Math.abs(o.ur[k] - o.ur[k - 1]); if (o.ur[k] !== o.u[k]) sat++;
+    if (simClean !== sim) rms += (o.ur[k] - simClean.ur[k]) ** 2;
   }
-  c.restore();
-  // legend
-  let lx=L+8;const ly=T+10;c.textAlign='left';c.textBaseline='middle';
-  const items=o.series.filter(s=>s.label);
-  c.font='11.5px system-ui,sans-serif';
-  const widths=items.map(s=>c.measureText(s.label).width+30),tot=widths.reduce((a,b)=>a+b,0);
-  c.fillStyle=css('--panel');c.globalAlpha=.85;c.fillRect(lx-4,ly-8,tot+4,16);c.globalAlpha=1;
-  items.forEach((s,i)=>{c.strokeStyle=s.color;c.lineWidth=2.2;c.setLineDash(s.dash||[]);c.globalAlpha=Math.max(s.alpha??1,.6);
-    c.beginPath();c.moveTo(lx,ly);c.lineTo(lx+18,ly);c.stroke();c.setLineDash([]);c.globalAlpha=1;
-    c.fillStyle=css('--ink');c.fillText(s.label,lx+22,ly);lx+=widths[i];});
+  const f = (v, u = '', dig = 3) => (v === undefined || isNaN(v)) ? '—' : nice(v, dig) + u;
+  const items = [
+    ['Overshoot', f(mc.os, ' %'), mn && f(mn.os, ' %')],
+    ['Rise time (10–90 %)', f(mc.tr, ' s'), mn && f(mn.tr, ' s')],
+    ['Settling time (±2 %)', f(mc.ts, ' s'), mn && f(mn.ts, ' s')],
+    ['Peak time', f(mc.tp, ' s'), mn && f(mn.tp, ' s')],
+    ['IAE – reference (0…t<sub>d</sub>)', f(mc.iaeR), mn && f(mn.iaeR)],
+    ['IAE – disturbance (t<sub>d</sub>…end)', f(mc.iaeD), mn && f(mn.iaeD)],
+    ['Max. deviation after d', f(mc.maxDev), mn && f(mn.maxDev)],
+    ['Error at end', f(mc.ess, '', 3), mn && f(mn.ess, '', 3)],
+    ['u range (unlimited)', nice(umin, 3) + ' … ' + nice(umax, 3), null],
+    ['u<sub>r</sub> range (limited)', nice(urmin, 3) + ' … ' + nice(urmax, 3), null],
+    ['Total variation of u<sub>r</sub>', f(tv), null],
+    ['Noise in u<sub>r</sub> (RMS)', simClean !== sim ? f(Math.sqrt(rms / o.N), '', 3) : '— (no noise)', null],
+    ['Time in saturation', S.actOn ? f(100 * sat / o.N, ' %', 3) : '— (no limits)', null],
+  ];
+  $('metrics').innerHTML = items.map(([k, v, n]) => `<div class="metric"><div class="k">${k}</div><div class="v">${v}</div>${n ? `<div class="n">naive: ${n}</div>` : ''}</div>`).join('');
+  $('perfNote').textContent = '— output measures from the noise-free response' + (S.naive ? '; pink = naive PID without anti-windup' : '');
 }
 
-/* ---------- held trace ---------- */
-let held=null, locked=null;
-$('hold').onclick=()=>{if(last)held={t:Float64Array.from(last.t),y:Float64Array.from(last.y),u:Float64Array.from(last.u)};schedule();};
-$('clearHold').onclick=()=>{held=null;schedule();};
-$('reset').onclick=()=>{held=null;seed=12345;$('scenText').textContent='Pick an experiment, then move the sliders to see what changes.';apply({});};
-$('lockAx').addEventListener('change',()=>{locked=null;});
-
-/* ---------- render ---------- */
-let last=null;
-function render(){
-  const p=params();
-  // UI state
-  SL.L.row.classList.toggle('disabled',p.ptype!=='d');
-  ['umin','umax'].forEach(k=>SL[k].row.classList.toggle('disabled',!p.lim));
-  $('aw').disabled=!p.lim; SL.Tt.row.classList.toggle('disabled',!(p.lim&&p.aw==='bc'));
-  SL.Kp.row.classList.toggle('disabled',!p.enP);SL.Ki.row.classList.toggle('disabled',!p.enI);SL.Kd.row.classList.toggle('disabled',!p.enD);
-  ['P','I','D'].forEach(k=>{$('lb'+k).className=p['en'+k]?'on-'+k:'';$('card'+k).classList.toggle('off',!p['en'+k]||p['k'+k.toLowerCase()]===0);});
-  $('cardW').classList.toggle('off',!p.lim);
-  const K=p.K.toFixed(2),T=p.T.toFixed(2);
-  $('tfProc').innerHTML='G(s) = '+(p.ptype==='1'?`${K} / (${T}s + 1)`:p.ptype==='2'?`${K} / (${T}s + 1)²`:p.ptype==='3'?`${K} / (${T}s + 1)³`:`${K}·e<sup>−${p.L.toFixed(2)}s</sup> / (${T}s + 1)`);
-  $('tfCtrl').innerHTML=`C(s) = (${p.kp.toFixed(2)} + ${p.ki.toFixed(2)}/s + ${p.kd.toFixed(2)}s) · 1/(${p.Tf.toFixed(3)}s + 1)`;
-
-  const S=simulate(p);last=S;const m=metrics(S,p);
-  const sY=[],sU=[];
-  if(held){sY.push({t:held.t,d:held.y,color:css('--c-ghost'),w:2,label:'y (held)'});sU.push({t:held.t,d:held.u,color:css('--c-ghost'),w:2,label:'u (held)'});}
-  if(p.noise>0&&$('showYm').checked)sY.push({d:S.ym,color:css('--c-ym'),w:1,label:'yₘ measured'});
-  sY.push({d:S.r,color:css('--c-r'),w:1.6,dash:[6,4],label:'r reference'});
-  sY.push({d:S.y,color:css('--c-y'),w:2.2,label:'y output'});
-  if($('showPID').checked){
-    if(p.kp)sU.push({d:S.P,color:css('--c-p'),w:1.1,alpha:.8,label:'P'});
-    if(p.ki)sU.push({d:S.I,color:css('--c-i'),w:1.1,alpha:.8,label:'I'});
-    if(p.kd)sU.push({d:S.D,color:css('--c-d'),w:1.1,alpha:.8,label:'D'});
-  }
-  if(p.lim&&$('showV').checked)sU.push({d:S.v,color:css('--c-v'),w:1.2,dash:[3,3],label:'v (before limit)'});
-  sU.push({d:S.u,color:css('--c-u'),w:2,label:'u to actuator'});
-
-  const xr=[0,p.tsim];
-  let yrY=autoRange(sY.map(s=>s.d),[0,p.ra]), yrU=autoRange([S.u].concat(sU.filter(s=>s.label!=='v (before limit)'||true).map(s=>s.d)),p.lim?[p.umin,p.umax,0]:[0]);
-  // keep y plot readable when unstable
-  if(m.unstable){const lim=Math.max(3*Math.abs(p.ra),1);yrY=[Math.max(yrY[0],-lim),Math.min(yrY[1],lim)];}
-  if($('lockAx').checked){ if(!locked||locked.tsim!==p.tsim) locked={y:yrY,u:yrU,tsim:p.tsim}; yrY=locked.y;yrU=locked.u; }
-  const vl=[];if(p.da!==0&&p.td<p.tsim)vl.push({v:p.td,color:css('--c-dist'),label:'load disturbance'});
-  drawPlot($('cvY'),{t:S.t,series:sY,xr,yr:yrY,vlines:vl});
-  drawPlot($('cvU'),{t:S.t,series:sU,xr,yr:yrU,vlines:vl,xlabel:'time [s]',hlines:p.lim?[{v:p.umax,color:css('--c-lim')},{v:p.umin,color:css('--c-lim')}]:[]});
-
-  const tiles=[['Overshoot',f(m.os,1,' %')],['Rise time 10–90 %',f(m.tr,2,' s')],['Settling 2 %',f(m.ts,2,' s')],
-    ['Offset before dist.',f(m.e1,3)],['Offset at end',f(m.e2,3)],['IAE ∫|r−y|',f(m.iae,2)],['max |u|',f(m.umax,2)],['Σ|Δu| (wear/noise)',f(m.tv,1)]];
-  $('metrics').innerHTML=tiles.map(([k,v])=>`<div class="tile"><div class="k" title="${k}">${k}</div><div class="v">${v}</div></div>`).join('');
-
-  // live interpretation
-  const notes=[];
-  if(m.unstable)notes.push('<b style="color:var(--bad)">Closed loop is unstable</b> — reduce K<sub>p</sub>/K<sub>i</sub>, add D, or reduce T<sub>f</sub>/dead time.');
-  else if(m.osc)notes.push('<b style="color:var(--warn)">Poorly damped / sustained oscillation</b> — the loop is near its stability limit.');
-  if(!p.ki&&(p.kp||p.kd)&&!m.unstable){const ess=1/(1+p.K*p.kp);notes.push(`No integral action → steady-state offset remains (theory for a reference step: e∞ = r/(1+K·K<sub>p</sub>) = ${(p.ra*ess).toFixed(3)}). A load disturbance also leaves an offset.`);}
-  if(p.ki&&!m.unstable&&Math.abs(m.e2)<0.01*Math.max(Math.abs(p.ra),0.1))notes.push('Integral action has driven the offset to zero, also after the load disturbance.');
-  if(p.ki&&!p.kp&&!p.kd&&!m.unstable)notes.push('Pure I control: no offset, but the response is slow and easily oscillatory.');
-  if(isFinite(m.os)&&m.os>25&&!m.unstable)notes.push(`Overshoot ${m.os.toFixed(0)} % — lower K<sub>i</sub> or K<sub>p</sub>, or add derivative damping.`);
-  if(p.kd&&p.noise>0&&p.Tf<0.03)notes.push(`Derivative with little filtering amplifies noise σ=${p.noise}: actuator activity Σ|Δu| = ${m.tv.toFixed(0)}. Increase T<sub>f</sub>.`);
-  if(p.kd&&p.dmode==='err'&&!p.lim&&p.ra!==0)notes.push(`D on the error: derivative kick at the reference step, peak ≈ K<sub>d</sub>·r/T<sub>f</sub> ${p.Tf>0?'= '+(p.kd*Math.abs(p.ra)/p.Tf).toFixed(1):'→ ∞ (no filter)'}.`);
-  if(p.lim&&m.satT>0.05*p.tsim)notes.push(`Actuator saturated for ${m.satT.toFixed(1)} s. ${p.ki?(p.aw==='none'?'Without anti-windup the integrator keeps growing (see dashed v) → large overshoot.':'Anti-windup ('+(p.aw==='bc'?'back-calculation':'clamping')+') keeps the integrator near the limit.'):''}`);
-  if(p.ptype==='d'&&p.L>p.T)notes.push('Dead time longer than the time constant: gains must be reduced; D helps little.');
-  if(!p.kp&&!p.ki&&!p.kd)notes.push('All controller actions are off — open loop with u = 0, the output only reacts to the disturbance.');
-  if(!notes.length)notes.push('Well-behaved response. Try changing one gain at a time and watch the metrics.');
-  $('notes').innerHTML=notes.map(s=>'<div>• '+s+'</div>').join('');
+// ---------- plotting ----------
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function niceTicks(lo, hi, n) {
+  const span = hi - lo; if (!(span > 0)) return [lo];
+  const st0 = span / n, p = Math.pow(10, Math.floor(Math.log10(st0))), e = st0 / p;
+  const st = (e < 1.5 ? 1 : e < 3 ? 2 : e < 7 ? 5 : 10) * p;
+  const t = []; for (let v = Math.ceil(lo / st) * st; v <= hi + st * 1e-9; v += st) t.push(Math.abs(v) < st * 1e-9 ? 0 : v); return t;
 }
+function decimate(t, y, N, x0, x1, W) {
+  // min/max per pixel column
+  const out = []; const B = Math.max(50, Math.floor(W));
+  const per = N / B;
+  if (per <= 2) { for (let k = 0; k < N; k++) out.push(t[k], y[k]); return out; }
+  for (let b = 0; b < B; b++) {
+    const a = Math.floor(b * per), z = Math.min(N, Math.floor((b + 1) * per)); if (z <= a) continue;
+    let mn = Infinity, mx = -Infinity, imn = a, imx = a;
+    for (let k = a; k < z; k++) { const v = y[k]; if (v < mn) { mn = v; imn = k; } if (v > mx) { mx = v; imx = k; } }
+    if (imn < imx) out.push(t[imn], mn, t[imx], mx); else out.push(t[imx], mx, t[imn], mn);
+  }
+  return out;
+}
+const charts = {
+  top: { cv: $('cTop'), tip: $('tipTop'), leg: $('legTop'), series: [], map: null },
+  mid: { cv: $('cMid'), tip: $('tipMid'), leg: $('legMid'), series: [], map: null },
+};
+function seriesFor(which) {
+  const out = [];
+  if (!sim) return out;
+  for (const k in SIG) {
+    const s = SIG[k]; if (s.chart !== which) continue;
+    if (s.naive) { if (!S.naive) continue; if (k === 'urn' && !S.actOn) continue; }
+    else if (!s.always && !S.disp[k]) continue;
+    if (!sim[k]) continue;
+    out.push({ key: k, data: sim[k], color: cssVar('--c-' + k), dash: s.dash || [], lab: s.lab, width: k === 'r' ? 1.4 : 2 });
+  }
+  return out;
+}
+function drawChart(which) {
+  const ch = charts[which]; const cv = ch.cv;
+  if (!cv.dataset.h) cv.dataset.h = cv.getAttribute('height'); // fixed CSS height (canvas.height is changed below for HiDPI)
+  const W = cv.clientWidth, H = parseInt(cv.dataset.h);
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + 'px'; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const series = seriesFor(which); ch.series = series;
+  // pinned ghosts
+  const ghosts = [];
+  if (pinned) { if (which === 'top') ghosts.push({ t: pinned.t, d: pinned.y, N: pinned.N }); else ghosts.push({ t: pinned.t, d: pinned.ur, N: pinned.N }); }
+  ch.leg.innerHTML = series.map(s => `<span><i class="${s.dash.length ? 'dash' : ''}" style="border-color:${s.color}"></i><b>${s.lab}</b></span>`).join('') +
+    (pinned ? `<span><i style="border-color:${cssVar('--c-pin')}"></i><b>pinned ${which === 'top' ? 'y' : 'u<sub>r</sub>'}</b></span>` : '') +
+    (which === 'mid' && S.actOn ? `<span><i class="dash" style="border-color:${cssVar('--err')}"></i><b>limits</b></span>` : '');
+  const ml = 52, mr = 12, mt = 8, mb = 26; const pw = W - ml - mr, ph = H - mt - mb;
+  const T = sim ? sim.t[sim.N - 1] : 1;
+  // y range
+  let lo = Infinity, hi = -Infinity;
+  const consider = (arr, N, robust) => {
+    if (robust) {
+      const step = Math.max(1, Math.floor(N / 4000)); const v = []; for (let k = 0; k < N; k += step) if (isFinite(arr[k])) v.push(arr[k]);
+      v.sort((a, b) => a - b); if (!v.length) return; lo = Math.min(lo, v[Math.floor(v.length * 0.01)]); hi = Math.max(hi, v[Math.floor(v.length * 0.99)]);
+    } else for (let k = 0; k < N; k++) { const v = arr[k]; if (isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  };
+  const robust = which === 'mid' && S.disp.robust;
+  for (const s of series) consider(s.data, sim.N, robust && s.key !== 'd');
+  for (const gh of ghosts) consider(gh.d, gh.N, robust);
+  if (which === 'mid' && S.actOn) { lo = Math.min(lo, S.lo, S.hi); hi = Math.max(hi, S.lo, S.hi); }
+  if (!isFinite(lo)) { lo = 0; hi = 1; }
+  lo = Math.max(lo, -1e6); hi = Math.min(hi, 1e6);
+  if (hi - lo < 1e-9) { lo -= 0.5; hi += 0.5; }
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  if (which === 'top' && lo > 0 && lo < (hi - lo) * 0.5) lo = 0 - pad * 0;
+  const X = t => ml + t / T * pw, Y = v => mt + (hi - v) / (hi - lo) * ph;
+  ch.map = { X, Y, ml, pw, mt, ph, T, lo, hi };
+  // grid
+  g.strokeStyle = cssVar('--grid'); g.lineWidth = 1; g.fillStyle = cssVar('--muted'); g.font = '11px system-ui, sans-serif';
+  g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (const v of niceTicks(lo, hi, 6)) { const yy = Math.round(Y(v)) + 0.5; g.beginPath(); g.moveTo(ml, yy); g.lineTo(ml + pw, yy); g.stroke(); g.fillText(nice(v, 3), ml - 5, yy); }
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const v of niceTicks(0, T, 10)) { const xx = Math.round(X(v)) + 0.5; g.beginPath(); g.moveTo(xx, mt); g.lineTo(xx, mt + ph); g.stroke(); g.fillText(nice(v, 3), xx, mt + ph + 5); }
+  g.strokeStyle = cssVar('--axis'); g.strokeRect(ml + 0.5, mt + 0.5, pw, ph);
+  g.textAlign = 'right'; g.fillText('t [s]', ml - 8, mt + ph + 5);
+  // zero line
+  if (lo < 0 && hi > 0) { g.strokeStyle = cssVar('--axis'); g.globalAlpha = 0.5; g.beginPath(); g.moveTo(ml, Y(0)); g.lineTo(ml + pw, Y(0)); g.stroke(); g.globalAlpha = 1; }
+  // disturbance marker
+  if (S.td > 0 && S.td < T && S.d !== 0) {
+    const xx = X(S.td); g.save(); g.setLineDash([3, 3]); g.strokeStyle = cssVar('--muted'); g.beginPath(); g.moveTo(xx, mt); g.lineTo(xx, mt + ph); g.stroke(); g.restore();
+    g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = cssVar('--muted'); g.fillText('d', xx + 3, mt + 2);
+  }
+  g.save(); g.beginPath(); g.rect(ml, mt, pw, ph); g.clip();
+  // limits
+  if (which === 'mid' && S.actOn) { g.setLineDash([6, 4]); g.strokeStyle = cssVar('--err'); g.lineWidth = 1; g.globalAlpha = 0.7;
+    for (const v of [S.lo, S.hi]) { g.beginPath(); g.moveTo(ml, Y(v)); g.lineTo(ml + pw, Y(v)); g.stroke(); } g.globalAlpha = 1; g.setLineDash([]); }
+  const line = (t, d, N, color, dash, width) => {
+    const pts = decimate(t, d, N, 0, T, pw * 1.5);
+    g.strokeStyle = color; g.lineWidth = width; g.setLineDash(dash); g.lineJoin = 'round';
+    g.beginPath();
+    for (let i = 0; i < pts.length; i += 2) { const xx = X(pts[i]), yy = Y(Math.max(-1e7, Math.min(1e7, pts[i + 1]))); if (i) g.lineTo(xx, yy); else g.moveTo(xx, yy); }
+    g.stroke(); g.setLineDash([]);
+  };
+  for (const gh of ghosts) line(gh.t, gh.d, gh.N, cssVar('--c-pin'), [], 2.5);
+  // draw order: reference last so dashes stay visible
+  const order = series.slice().sort((a, b) => (a.key === 'r') - (b.key === 'r'));
+  for (const s of order) line(sim.t, s.data, sim.N, s.color, s.dash, s.width);
+  g.restore();
+}
+function draw() { if (!sim) return; drawChart('top'); drawChart('mid'); }
+function hover(which, ev) {
+  const ch = charts[which]; if (!ch.map || !sim) return;
+  const rect = ch.cv.getBoundingClientRect(); const x = ev.clientX - rect.left;
+  const { ml, pw, T } = ch.map; if (x < ml || x > ml + pw) { hideTips(); return; }
+  const t = (x - ml) / pw * T; const k = Math.max(0, Math.min(sim.N - 1, Math.round(t / sim.dt)));
+  draw();
+  for (const w of ['top', 'mid']) {
+    const c = charts[w]; const g = c.cv.getContext('2d'); const xx = c.map.X(sim.t[k]);
+    g.save(); g.strokeStyle = cssVar('--muted'); g.lineWidth = 1; g.beginPath(); g.moveTo(xx, c.map.mt); g.lineTo(xx, c.map.mt + c.map.ph); g.stroke(); g.restore();
+    const rows = c.series.map(s => `<div><span style="color:${s.color}">■</span> ${s.lab.replace(/<[^>]+>/g, '')}: <b>${nice(s.data[k], 4)}</b></div>`).join('');
+    c.tip.innerHTML = `<div>t = ${nice(sim.t[k], 4)} s</div>` + rows; c.tip.style.display = 'block';
+    const cw = c.cv.clientWidth; const tw = c.tip.offsetWidth;
+    c.tip.style.left = (xx + 12 + tw > cw ? xx - tw - 12 : xx + 12) + 'px'; c.tip.style.top = '10px';
+  }
+}
+function hideTips() { charts.top.tip.style.display = charts.mid.tip.style.display = 'none'; draw(); }
+for (const w of ['top', 'mid']) { charts[w].cv.addEventListener('mousemove', e => hover(w, e)); charts[w].cv.addEventListener('mouseleave', hideTips); }
+window.addEventListener('resize', () => draw());
+if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => draw());
 
-/* ---------- guided experiments ---------- */
-const SCEN=[
- ['P only: steady-state offset',{enI:false,enD:false,Kp:2},'With P only the output settles below the reference: offset = 1/(1+K·Kp) = 33 %. The load disturbance adds another offset. Increase Kp: offset shrinks but the response gets oscillatory.'],
- ['High P: oscillation',{ptype:'3',enI:false,enD:false,Kp:6},'Third-order process with high Kp: fast but poorly damped. At Kp = 8 the loop oscillates permanently (ultimate gain), above it is unstable.'],
- ['I only: slow, no offset',{enP:false,enD:false,Ki:0.3,tsim:60},'Integral action alone removes the offset, but is slow. Increase Ki to speed up — overshoot and oscillation grow quickly.'],
- ['PI: zero offset',{enD:false,Kp:1.5,Ki:0.8},'P gives fast reaction, I removes offset for both reference and disturbance. Push Ki above ~2 and the response starts to oscillate.'],
- ['PID: D adds damping',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0.1,da:0.3},'D damps the oscillation of an aggressive PI on a 3rd-order process. Toggle D off to compare (use “Hold trace”).'],
- ['D amplifies noise',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0,noise:0.01},'Tiny sensor noise (σ = 0.01) without a filter makes u jump wildly because D differentiates it. Raise Tf to 0.1–0.3 and watch Σ|Δu| drop.'],
- ['Filter Tf trade-off',{ptype:'3',Kp:3,Ki:1,Kd:2,Tf:0.6,noise:0.01},'Large Tf removes noise from u but adds lag in the loop: less damping. Increase Tf further and the loop becomes unstable.'],
- ['Derivative kick',{dmode:'err',Kd:1,Tf:0.02,da:0},'With D acting on the error, the reference step is differentiated: a huge spike Kd·r/Tf in u. Switch “D acts on” to measurement to remove it.'],
- ['Windup (no anti-windup)',{lim:true,umin:-1,umax:1.4,aw:'none',Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'The actuator saturates at 1.4. The integrator keeps integrating (dashed v grows far above the limit), so the output overshoots heavily and recovers slowly.'],
- ['Anti-windup: back-calculation',{lim:true,umin:-1,umax:1.4,aw:'bc',Tt:0.2,Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'Back-calculation feeds (u−v)/Tt to the integrator, keeping v near the limit — overshoot nearly disappears. Vary Tt.'],
- ['Anti-windup: clamping',{lim:true,umin:-1,umax:1.4,aw:'clamp',Kp:3,Ki:2.5,Kd:0.3,da:0,ra:1},'Conditional integration stops integrating while saturated in the direction of the error. Compare with back-calculation.'],
- ['Dead time limits gains',{ptype:'d',T:1,L:2,Kp:1,Ki:0.6,enD:false,tsim:60},'With dead time L = 2T the same aggressiveness as before oscillates. Lower Ki to ~0.35 for a calm response; D brings little benefit here.'],
+$('pinBtn').addEventListener('click', () => { if (sim) pinned = { t: sim.t.slice(), y: sim.y.slice(), ur: sim.ur.slice(), N: sim.N }; draw(); });
+$('unpinBtn').addEventListener('click', () => { pinned = null; draw(); });
+$('resetBtn').addEventListener('click', () => { setActiveExp(null); applyState(DEFAULTS); });
+
+// ---------- guided experiments ----------
+const EXPS = [
+  { id: 'base', tag: 'PID', title: 'Baseline PID', set: {},
+    goal: 'The reference tuning for G(s) = 1/(1+s), L = 0.2 s. A step in r at t = 0 and a load disturbance d = 0.5 at t = 5 s.',
+    observe: ['Fast rise, ~2 % overshoot, no steady-state error.', 'u jumps at t = 0 to K<sub>s</sub>·r = K<sub>d</sub>/T<sub>f</sub> = 3.31 (the “reference kick”: all terms act on e = r<sub>f</sub> − y).', 'The disturbance is rejected; the integral term (enable “I-term”) settles at the new value u = r − d.'],
+    tryit: ['Enable P-, I- and D-term in DISPLAY to see how u is composed.', 'Press “Pin current response”, then change one gain and compare.'] },
+  { id: 'P', tag: 'P', title: 'P-only controller', set: { KiOn: false, KdOn: false, disp: { P: true } },
+    goal: 'Only proportional action: u = K<sub>p</sub>·G<sub>F</sub>·(r<sub>f</sub> − y). Here K<sub>s</sub> = K<sub>p</sub>·a<sub>f</sub><sup>n+n<sub>r</sub></sup>.',
+    observe: ['Permanent steady-state error e = r/(1 + K<sub>p</sub>·G(0)) = 1/3.95 ≈ 0.25.', 'The disturbance also leaves a permanent offset.', 'u starts at K<sub>p</sub>·r (proportional kick).'],
+    tryit: ['Raise K<sub>p</sub> to 6 and 10: smaller error but more oscillation (the delay limits K<sub>p</sub>).', 'Lower K<sub>p</sub> to 1: slow and large error.'] },
+  { id: 'I', tag: 'I', title: 'I-only controller', set: { KpOn: false, KdOn: false, Ki: 0.8, Tsim: 20, td: 10, disp: { I: true } },
+    goal: 'Only integral action. The equivalent controller is K<sub>i</sub>(1 + s·a<sub>f</sub>T<sub>f</sub>)/s·G<sub>F</sub>, with K<sub>s</sub> = K<sub>i</sub>·T<sub>f</sub>·a<sub>f</sub><sup>n+n<sub>r</sub>+1</sup> (very small).',
+    observe: ['Zero steady-state error, but a slow response.', 'Practically no reference kick: u starts near zero and grows as the error is integrated.', 'Disturbance rejection is slow.'],
+    tryit: ['Increase K<sub>i</sub> to 2: faster but oscillatory.', 'Enable actuator limits (0 … 1.1) and “Compare with naive PID” to see I-windup.'] },
+  { id: 'PI', tag: 'PI', title: 'PI controller', set: { KdOn: false },
+    goal: 'PID gains without the derivative term. Compare to the baseline PID (pin the PID response first).',
+    observe: ['No steady-state error (I-term) and quicker than I-only (P-term).', 'Overshoot rises to ~8 %: the D-term was adding damping.', 'Smaller kick: K<sub>s</sub> = K<sub>p</sub>.'],
+    tryit: ['Try K<sub>p</sub> = 1.9, K<sub>i</sub> = 1.9 for a well-damped PI.', 'Compare noise sensitivity with PID (set noise 0.01).'] },
+  { id: 'PID', tag: 'PID', title: 'PID: what each term does', set: { disp: { P: true, I: true, D: true, u: true, ur: false } },
+    goal: 'The P, I and D contributions of the linear-equivalent controller are shown in the lower plot (I-term = u − P − D).',
+    observe: ['D reacts to the rate of change of e: large at t = 0 and during fast transients.', 'P follows the error.', 'I builds up slowly and holds the steady-state value of u.'],
+    tryit: ['Change K<sub>d</sub> between 0.1 and 0.6 and watch damping and overshoot.', 'Change T<sub>f</sub> and watch the D-term peak.'] },
+  { id: 'noise', tag: 'Noise', title: 'Noise amplification by the D-term', set: { noise: 0.01, Tf: 0.01, disp: { yt: true } },
+    goal: 'Measurement noise (σ = 0.01) with a weakly filtered derivative: the high-frequency gain of C(s) is K<sub>d</sub>·a<sub>f</sub><sup>n</sup>/T<sub>f</sub> = 33.',
+    observe: ['u is extremely noisy although y looks almost clean.', 'See “Noise in u<sub>r</sub> (RMS)” in the performance panel.'],
+    tryit: ['Increase T<sub>f</sub> to 0.1 (HF gain 3.3).', 'Then increase n to 1 and 2 (additional filtering by G<sub>F</sub>, a<sub>f</sub> = 0.1).', 'Set K<sub>d</sub> off (PI) and compare.', 'Note the price of heavy filtering: more phase lag → more overshoot.'] },
+  { id: 'filt', tag: 'Filter', title: 'Controller filter order n and a<sub>f</sub>', set: { noise: 0.01, n: 2, Tf: 0.1, af: 0.1, disp: { yt: true } },
+    goal: 'G<sub>F</sub> = (1+s·a<sub>f</sub>T<sub>f</sub>)<sup>n</sup>/(1+sT<sub>f</sub>)<sup>n</sup> attenuates high frequencies by a factor a<sub>f</sub><sup>n</sup>.',
+    observe: ['Very small noise in u, but large overshoot (~36 %): the filter adds phase lag around the crossover frequency.'],
+    tryit: ['n = 0, 1, 2 – trade-off between noise and performance.', 'a<sub>f</sub> = 0.3 or 0.5: milder filter, less lag.', 'Reduce T<sub>f</sub> to 0.03 with n = 2.'] },
+  { id: 'kick', tag: 'Kick', title: 'Reference kick', set: { Tf: 0.01, disp: { ksr: true } },
+    goal: 'All three terms act on the (filtered) error, so a reference step passes the D-term directly: u(0⁺) = K<sub>s</sub>·r = K<sub>d</sub>·a<sub>f</sub><sup>n+n<sub>r</sub></sup>/T<sub>f</sub>·r.',
+    observe: ['u jumps to 33 at t = 0 (K<sub>s</sub>·r, shown dashed).', 'The process output is hardly faster – the kick mostly stresses the actuator.'],
+    tryit: ['Set n<sub>r</sub> = 1 (T<sub>fr</sub> = 0.5): K<sub>s</sub> drops by a<sub>f</sub> → kick 3.3.', 'n<sub>r</sub> = 2: kick 0.33.', 'Enable “Robust u-axis scaling” to zoom past the spike.'] },
+  { id: 'rfilt', tag: '2-DOF', title: 'Reference filter G<sub>FR</sub> (2-DOF)', set: { nr: 2, Tfr: 0.3, disp: { rf: true } },
+    goal: 'G<sub>FR</sub> = (1+s·a<sub>f</sub>T<sub>fr</sub>)<sup>n<sub>r</sub></sup>/(1+sT<sub>fr</sub>)<sup>n<sub>r</sub></sup> shapes only the reference; the feedback loop is unchanged.',
+    observe: ['Smooth set-point response without overshoot, peak of u reduced.', 'The disturbance response (t > 5 s) is identical to the baseline – pin the baseline to check.'],
+    tryit: ['T<sub>fr</sub> = 1: slower, very gentle response.', 'n<sub>r</sub> = 1 vs 2.'] },
+  { id: 'wind', tag: 'Limits', title: 'Actuator limits: anti-windup', set: { actOn: true, lo: 0, hi: 1.2, naive: true },
+    goal: 'The actuator saturates at 1.2. The conditioning controller feeds the limited signal u<sub>r</sub> back through G<sub>FB</sub>, so its states never wind up.',
+    observe: ['Conditioning: practically no overshoot.', 'Naive PID (pink): the integrator keeps integrating during saturation → ~18 % overshoot.', 'Unlimited u of the naive controller drifts far beyond the limit.'],
+    tryit: ['Lower the upper limit to 1.05.', 'Try the PI (K<sub>d</sub> off) and I-only controllers with limits.'] },
+  { id: 'unreach', tag: 'Limits', title: 'Unreachable reference & recovery', set: { r: 2, d: 1, td: 6, Tsim: 15, actOn: true, lo: 0, hi: 1.5, naive: true },
+    goal: 'r = 2 needs u = 2, but u<sub>max</sub> = 1.5. At t = 6 s a disturbance d = 1 makes the reference reachable again (u = 1).',
+    observe: ['Neither controller can reach r before t = 6 s (physical limitation).', 'The naive u keeps growing (windup); after t = 6 s it needs a long time to unwind.', 'The conditioning controller reacts immediately.'],
+    tryit: ['Change the disturbance time and see how the naive recovery delay grows with the saturation time.'] },
+  { id: 'delay', tag: 'Delay', title: 'Time delay limits performance', set: { L: 0.5 },
+    goal: 'Same PID gains, but the delay increases from 0.2 s to 0.5 s.',
+    observe: ['Strong oscillations (overshoot ~80 %) – the tuning is too aggressive for the larger delay.'],
+    tryit: ['L = 0.6: very poorly damped, close to instability.', 'Re-tune: e.g. K<sub>p</sub> = 1.2, K<sub>i</sub> = 1, K<sub>d</sub> = 0.25.'] },
+  { id: 'ho', tag: 'Process', title: 'Higher-order process', set: { G: '1/(1+s)^3', L: 0, Kp: 2.5, Ki: 0.9, Kd: 2, Tsim: 30, td: 15 },
+    goal: 'G(s) = 1/(1+s)³: lag-dominant process where derivative action is very useful.',
+    observe: ['Good response with ~4 % overshoot.', 'Large kick: K<sub>s</sub> = K<sub>d</sub>/T<sub>f</sub> = 20.'],
+    tryit: ['Switch D off: oscillatory; then reduce to K<sub>p</sub> = 1, K<sub>i</sub> = 0.4 (PI).', 'Add noise 0.01 and use n = 1 or 2.'] },
+  { id: 'int', tag: 'Process', title: 'Integrating process', set: { G: '1/(s*(1+s))', L: 0, Kp: 1, Ki: 0.15, Kd: 1, Tsim: 60, td: 30 },
+    goal: 'G(s) = 1/(s(1+s)). The process already contains an integrator.',
+    observe: ['Some overshoot is unavoidable when the controller has integral action and a load disturbance must be rejected.'],
+    tryit: ['Switch I off (PD): no reference overshoot, but a permanent offset after the disturbance.', 'Add limits 0 … 1 and compare with the naive PID.'] },
+  { id: 'nmp', tag: 'Process', title: 'Non-minimum-phase process', set: { G: '(1-0.5s)/(1+s)^2', L: 0, Kp: 1, Ki: 0.5, Kd: 0.3, Tsim: 30, td: 15 },
+    goal: 'G(s) = (1 − 0.5s)/(1+s)²: the output first moves in the wrong direction.',
+    observe: ['Initial undershoot in y.', 'Aggressive gains quickly lead to oscillation.'],
+    tryit: ['Increase K<sub>p</sub> to 2 or K<sub>d</sub> to 1 and watch the undershoot.'] },
+  { id: 'equiv', tag: 'Theory', title: 'Linear equivalence check', set: { naive: true, disp: { u: true } },
+    goal: 'Without limits, u<sub>r</sub> = u, and the conditioning structure is identical to u = C(s)·(G<sub>FR</sub>·r − y).',
+    observe: ['The naive (pink, dashed) curves lie exactly on top of y and u.'],
+    tryit: ['Change any parameter – they always coincide.', 'Now enable actuator limits: the curves separate only when the actuator saturates.'] },
 ];
-SCEN.forEach(([name,cfg,txt])=>{const b=document.createElement('button');b.className='scen';b.textContent=name;
-  b.onclick=()=>{apply(cfg);$('scenText').textContent=txt;};$('scenList').appendChild(b);});
+const el = $('expList');
+for (const ex of EXPS) {
+  const d = document.createElement('div'); d.className = 'exp'; d.dataset.id = ex.id;
+  d.innerHTML = `<div class="hd"><h3>${ex.title}</h3><span class="tag">${ex.tag}</span></div>
+    <div class="body"><div>${ex.goal}</div>
+    <div class="lbl">Observe</div><ul>${ex.observe.map(x => '<li>' + x + '</li>').join('')}</ul>
+    <div class="lbl">Try</div><ul>${ex.tryit.map(x => '<li>' + x + '</li>').join('')}</ul>
+    <button class="btn primary" data-load="${ex.id}">Reload settings</button></div>`;
+  d.addEventListener('click', e => {
+    if (e.target.closest('.body') && !e.target.dataset.load) return;
+    loadExp(ex.id);
+  });
+  el.appendChild(d);
+}
+function setActiveExp(id) { el.querySelectorAll('.exp').forEach(x => x.classList.toggle('active', x.dataset.id === id)); }
+function loadExp(id) {
+  const ex = EXPS.find(x => x.id === id); if (!ex) return;
+  const st = JSON.parse(JSON.stringify(DEFAULTS));
+  for (const k in ex.set) { if (k === 'disp') Object.assign(st.disp, ex.set.disp); else st[k] = ex.set[k]; }
+  pinned = null; setActiveExp(id); applyState(st);
+}
 
-new ResizeObserver(schedule).observe(document.querySelector('.main'));
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',schedule);
-apply({});
-})();
+// ---------- start ----------
+applyState(DEFAULTS);
 </script>
-<script src="../assets/labs.js"></script>
-<script src="../assets/lab-nav.js"></script>
 </body>
 </html>
